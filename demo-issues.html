@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Popover Composition Issue Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .demo-section {
+            margin: 40px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        /* Custom button styling */
+        custom-button {
+            display: inline-block;
+            margin: 10px;
+        }
+
+        /* Custom input styling */
+        my-input {
+            display: inline-block;
+            margin: 10px;
+        }
+
+        /* Label custom button styling */
+        label-custom-button {
+            display: inline-block;
+            margin: 10px;
+        }
+
+        /* Aria button styling */
+        aria-button {
+            display: inline-block;
+            margin: 10px;
+        }
+
+        /* Popover styling */
+        .my-popover {
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 350px;
+        }
+
+        .my-popover::backdrop {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Standard button for comparison */
+        .standard-btn {
+            padding: 10px 16px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .standard-btn:hover {
+            background: #005a9e;
+        }
+
+        /* Code styling for better readability */
+        code {
+            background-color: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-family: 'Fira Code', 'Cascadia Code', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 1.1em;
+            color: #e2e8f0;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        pre code {
+            background-color: #f8f9fa;
+            border: none;
+            padding: 0;
+            color: #212529;
+            display: block;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        pre {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <h1>Popover API x custom elements</h1>
+    <h2>Ana Sollano Kim</h2>
+    <h3>November 2025</h3>
+
+    <div class="demo-section">
+        <h2>1. Native button with popover</h2>
+        <p>A native button can use <code>popovertarget</code>:</p>
+        <p><strong>✨ Purely Declarative</strong></p>
+
+        <pre><code>&lt;button popovertarget="simple-popover"&gt;Open Popover&lt;/button&gt;
+
+&lt;div id="simple-popover" popover aria-labelledby="simple-title"&gt;
+    &lt;h3 id="simple-title"&gt;Simple Popover&lt;/h3&gt;
+    &lt;p&gt;Content here...&lt;/p&gt;
+    &lt;button popovertarget="simple-popover" popovertargetaction="hide"&gt;Close&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+
+        <button class="standard-btn" popovertarget="simple-popover">Open Popover</button>
+
+        <div id="simple-popover" popover class="my-popover" aria-labelledby="simple-title">
+            <h3 id="simple-title">Simple Popover</h3>
+            <p>This popover is triggered by a native button using the <code>popovertarget</code> attribute.</p>
+            <button popovertarget="simple-popover" popovertargetaction="hide">Close</button>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>2. Custom element with button in shadow DOM</h2>
+        <p>This custom element tries to leverage a shadowed button by reflecting the <code>popovertarget</code> attribute:</p>
+        <p><strong>⚙️ Requires JavaScript</strong> - Even with attribute reflection, <code>popovertarget</code> doesn't work across shadow DOM boundaries.</p>
+
+        <ul>
+            <li><code>popovertarget</code> requires both trigger and target in the same document tree.</li>
+            <li>The popover target is in light DOM, but the button is in shadow DOM.</li>
+        </ul>
+
+        <pre><code>&lt;custom-button popovertarget="custom-popover"&gt;Open Popover&lt;/custom-button&gt;
+
+&lt;div id="custom-popover" popover aria-labelledby="custom-title"&gt;
+    &lt;h3 id="custom-title"&gt;Custom Element Popover&lt;/h3&gt;
+    &lt;p&gt;Content here...&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;script&gt;
+class CustomButton extends HTMLElement {
+    constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+
+        const button = document.createElement('button');
+        button.innerHTML = '&lt;slot&gt;&lt;/slot&gt;';
+        this.shadowRoot.appendChild(button);
+
+        // Store reference for attribute reflection
+        this.button = button;
+    }
+
+    connectedCallback() {
+        // Try to reflect popovertarget to the internal button
+        this.reflectPopovertarget();
+    }
+
+    reflectPopovertarget() {
+        const target = this.getAttribute('popovertarget');
+        if (target) {
+            // Attempt to make the shadow button work with popovertarget
+            this.button.setAttribute('popovertarget', target);
+        }
+    }
+}
+&lt;/script&gt;</code></pre>
+
+        <custom-button popovertarget="custom-popover">Open Popover</custom-button>
+
+        <div id="custom-popover" popover class="my-popover" aria-labelledby="custom-title"></div>
+    </div>
+
+    <div class="demo-section">
+        <h2>3. Custom element that reimplements popovertarget</h2>
+        <p>A custom element that acts as the invoker itself and reimplements <code>popovertarget</code> functionality:</p>
+        <p><strong>⚙️ Requires JavaScript</strong> - Must implement button semantics, event handling, and popover logic.</p>
+
+        <pre><code>&lt;popover-invoker popovertarget="reimplemented-popover"&gt;Open Popover&lt;/popover-invoker&gt;
+
+&lt;div id="reimplemented-popover" popover aria-labelledby="reimplemented-title"&gt;
+    &lt;h3 id="reimplemented-title"&gt;Reimplemented Popover&lt;/h3&gt;
+    &lt;p&gt;Content here...&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;script&gt;
+class PopoverInvoker extends HTMLElement {
+    constructor() {
+        super();
+
+        this.internals = this.attachInternals();
+        this.internals.role = 'button';
+        this.internals.ariaExpanded = 'false';
+
+        this.setAttribute('tabindex', '0');
+
+        this.addEventListener('click', this.togglePopover.bind(this));
+        this.addEventListener('keydown', this.handleKeydown.bind(this));
+    }
+
+    handleKeydown(event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            this.togglePopover();
+        }
+    }
+
+    togglePopover() {
+        const target = this.getAttribute('popovertarget');
+        if (target) {
+            const popover = document.getElementById(target);
+            if (popover) {
+                if (popover.matches(':popover-open')) {
+                    popover.hidePopover();
+                    this.internals.ariaExpanded = 'false';
+                } else {
+                    popover.showPopover();
+                    this.internals.ariaExpanded = 'true';
+                }
+            }
+        }
+    }
+}
+&lt;/script&gt;</code></pre>
+
+        <popover-invoker popovertarget="reimplemented-popover">
+            Open Popover
+        </popover-invoker>
+
+        <div id="reimplemented-popover" popover class="my-popover" aria-labelledby="reimplemented-title">
+            <h3 id="reimplemented-title">Reimplemented Popover</h3>
+            <p>This popover is triggered by a custom element that reimplements <code>popovertarget</code> functionality directly.</p>
+            <p>This approach:</p>
+            <ul>
+                <li>Uses <code>ElementInternals</code> for ARIA attributes and adds <code>tabindex</code> for keyboard handling.</li>
+                <li>Programmatically calls <code>showPopover()</code>/<code>hidePopover()</code>.</li>
+            </ul>
+            <button onclick="document.getElementById('reimplemented-popover').hidePopover()">Close</button>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>4. Shadowing both button and popover</h2>
+        <p>Puts both the button and popover in the shadow DOM. Works with native <code>popovertarget</code> since both elements are in the same shadow tree.</p>
+        <p><strong>⚙️ Requires JavaScript</strong> - Imperative Custom Element definition.</p>
+        <ul>
+            <li>Can't mix and match different popover content with different buttons.</li>
+            <li>Can't reuse button with different popovers.</li>
+            <li>Popover content is hardcoded in the component template.</li>
+        </ul>
+
+        <pre><code>&lt;fully-encapsulated-button&gt;Open Popover&lt;/fully-encapsulated-button&gt;
+
+&lt;script&gt;
+class FullyEncapsulatedButton extends HTMLElement {
+    constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+
+        // Both button and popover in shadow DOM
+        this.shadowRoot.innerHTML = `
+            &lt;button id="btn" popovertarget="internal-popover"&gt;&lt;slot&gt;&lt;/slot&gt;&lt;/button&gt;
+            &lt;div id="internal-popover" popover&gt;
+                &lt;h3&gt;Internal Popover&lt;/h3&gt;
+                &lt;p&gt;Content here...&lt;/p&gt;
+            &lt;/div&gt;
+        `;
+    }
+}
+&lt;/script&gt;</code></pre>
+
+        <fully-encapsulated-button>Open Popover</fully-encapsulated-button>
+    </div>
+
+    <div class="demo-section">
+        <h2>If custom elements supported the Popover API</h2>
+        <p><strong>⚙️ Requires JavaScript</strong> - Imperative custom element definition.</p>
+
+        <pre><code>&lt;custom-button popovertarget="popover"&gt;
+    &lt;slot&gt;Open Popover&lt;/slot&gt;
+&lt;/custom-button&gt;
+
+&lt;div id="popover" popover&gt;
+    &lt;!-- Popover content --&gt;
+&lt;/div&gt;</code></pre>
+
+        <p>We have to make the custom button a "good" invoker.</p>
+        <ul>
+            <li>Add role button.</li>
+            <li>Enter and Space keys activate button.</li>
+            <li>Focusability.</li>
+        </ul>
+
+        <pre><code>&lt;script&gt;
+class CustomButton extends HTMLElement {
+    constructor() {
+        super();
+
+        this.internals = this.attachInternals();
+        this.internals.role = 'button';
+
+        this.setAttribute('tabindex', '0');
+
+        this.addEventListener('click', () =&gt; {
+            // Focus restoration has to be done when programmatically calling showPopover().
+            this.lastFocusedElement = document.activeElement;
+            // The browser should at least handle the click activation behavior.
+        });
+
+        // Restore focus on close.
+        document.addEventListener('beforetoggle', (event) =&gt; {
+            if (event.target.id === this.getAttribute('popovertarget')) {
+                if (event.newState === 'closed' && this.lastFocusedElement === this) {
+                    this.focus();
+                }
+            }
+        });
+
+        // Should the browser handle the keyboard activation behavior?
+        this.addEventListener('keydown', (event) =&gt; {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                this.handleActivation();
+            }
+        });
+    }
+
+    connectedCallback() {
+        const target = this.getAttribute('popovertarget');
+        if (target) {
+            // Set up popover association.
+            this.internals.ariaExpanded = 'false';
+            const popoverElement = document.getElementById(target);
+            if (popoverElement) {
+                // Set aria-controls to establish semantic relationship with popover.
+                this.internals.ariaControlsElements = [popoverElement];
+            }
+        }
+    }
+
+    handleActivation() {
+        const target = this.getAttribute('popovertarget');
+        if (target) {
+            const popover = document.getElementById(target);
+            if (popover) {
+                if (popover.matches(':popover-open')) {
+                    popover.hidePopover();
+                    this.internals.ariaExpanded = 'false';
+                } else {
+                    popover.showPopover();
+                    this.internals.ariaExpanded = 'true';
+                }
+            }
+        }
+    }
+}
+customElements.define('custom-button', CustomButton);
+&lt;/script&gt;</code></pre>
+
+        <p>If browsers could bundle the button behavior, it would save the custom element author a lot of boilerplate code.</p>
+
+        <pre><code>&lt;custom-button popovertarget="popover"&gt;
+    &lt;slot&gt;Open Popover&lt;/slot&gt;
+&lt;/custom-button&gt;
+
+&lt;div id="popover" popover&gt;
+    &lt;!-- Popover content --&gt;
+&lt;/div&gt;
+&lt;script&gt;
+class CustomButton extends HTMLElement {
+    constructor() {
+        super();
+        this.internals = this.attachInternals();
+        this.internals.popoverTarget = this.getAttribute('popovertarget');
+    }
+}
+customElements.define('custom-button', CustomButton);
+&lt;/script&gt;</code></pre>
+
+        <p>Browser would manage:</p>
+        <ul>
+            <li>Button role assignment.</li>
+            <li>Event listeners (click, keydown for Enter/Space).</li>
+            <li>ARIA attributes (aria-expanded, aria-controls).</li>
+            <li>Focus management and restoration.</li>
+        </ul>
+        <p>However, this approach would require the browser to automatically add button semantics to all custom elements that use the Popover API, which might cause:</p>
+        <ul>
+            <li>Unexpected behavior if the custom element is not intended to be a button.</li>
+            <li>Compatibility issues with custom elements that already use the <code>popovertarget</code> and <code>popover</code> attributes.</li>
+            <li>Confusion as to what default behaviors are included by just using the Popover API.</li>
+        </ul>
+    </div>
+
+    <div class="demo-section">
+        <h2>Unbundling into atomic/granular functionality</h2>
+        <p>Declare the features in <code>static elementFeatures</code> similar to <code>static formAssociated = true</code>:</p>
+
+        <pre><code>&lt;custom-button popovertarget="customs-popover"&gt;Open Popover&lt;/custom-button&gt;
+
+&lt;div id="custom-popover" popover&gt;
+    &lt;!-- Popover content --&gt;
+&lt;/div&gt;
+&lt;script&gt;
+class FeatureButton extends HTMLElement {
+    static elementFeatures = {
+        activation: true,
+        focusMode: 'control',
+        keyboardActivation: ['Enter', 'Space'],
+        popovertarget: true,
+        role: 'button',
+    };
+
+    constructor() {
+        super();
+        this.internals = this.attachInternals();
+
+        // Set up activation callback (only works if activation: true)
+        this.internals.onActivate = (event) => {
+            // Called by browser when user clicks or presses specified keys
+            console.log('Button activated!', event.type);
+        };
+    }
+}
+customElements.define('feature-button', FeatureButton);
+&lt;/script&gt;</code></pre>
+
+        <p>Browser automatically configures functionality based on elementFeatures:</p>
+        <ul>
+            <li>Sets <code>this.internals.role = 'button'</code></li>
+            <li>Manages focusability</li>
+            <li>Listens for keyboard down events specified in <code>keyboardActivation</code></li>
+            <li>Handles popover behavior</li>
+        </ul>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <thead>
+                <tr style="background: #f5f5f5;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Feature</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Type</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Behavior</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;"><code>activation</code></td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">boolean</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Enables <code>this.internals.onActivate</code> method (like <code>formAssociated</code>
+                        enables <code>setValidity</code>)</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;"><code>focusMode</code></td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">string</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Sets <code>this.internals.focusMode</code>.
+                        Three possible values: 'none' (not focusable), 'text-input' (focusable, edits text), 'control' (focusable, does not edit text)</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;"><code>keyboardActivation</code></td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">string[]</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Browser listens for specified keys (requires <code>activation: true</code>)</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;"><code>popovertarget</code></td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">boolean</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Enables popover invoker behavior, manages ARIA attributes</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;"><code>role</code>(already available)</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">string</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Sets <code>this.internals.role</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>This approach:</p>
+        <ul>
+            <li>Enables the custom element author to mix and match features as needed.</li>
+            <li>Uses the same pattern as existing <code>static formAssociated</code>.</li>
+            <li>Makes behavior predictable since the custom element author is explicitly opting into selected behaviors.</li>
+            <li>Makes each feature handle its own accessibility semantics.</li>
+        </ul>
+
+        <p>Instead of static declarations, features could be configured directly in <code>attachInternals()</code>:</p>
+
+        <pre><code>&lt;custom-button popovertarget="popover"&gt;Open Popover&lt;/custom-button&gt;
+
+&lt;div id="popover" popover&gt;
+    &lt;!-- Popover content --&gt;
+&lt;/div&gt;
+&lt;script&gt;
+class CustomButton extends HTMLElement {
+    constructor() {
+        super();
+
+        this.internals = this.attachInternals({
+            features: {
+                focusMode: 'control',
+                keyboardActivation: ['Enter', 'Space'],
+                popovertarget: true,
+                role: 'button',
+                activation: true
+            }
+        });
+
+        this.internals.onActivate = (event) => {
+            console.log('Button activated!', event.type);
+        };
+    }
+}
+customElements.define('custom-button', CustomButton);
+&lt;/script&gt;</code></pre>
+
+        <p>We could also allow custom elements to use <code>ElementInternals</code> to reflect <code>popovertarget</code> across shadow DOM boundaries.
+           Custom element reflects <code>popovertarget</code> to <code>this.internals.popoverTargetElement</code>, similar to <code>this.internals.ariaControlsElements</code>.</p>
+        <p><strong>⚙️ Requires JavaScript</strong> - Uses attribute reflection.</p>
+        <ul>
+            <li><code>this.internals.popoverTargetElement = element</code> takes an element reference. Based on how some accessibility properties in
+                <code>ElementInternals</code> work and are able to cross shadow DOM boundaries.</li>
+            <li><strong>What would the browser handle?</strong> Click events, keyboard activation, popover show/hide.</li>
+            <li>Button and popover remain separate, reusable components.</li>
+        </ul>
+
+        <pre><code>&lt;reference-button popovertarget="reference-popover"&gt;Open Popover&lt;/reference-button&gt;
+
+&lt;div id="reference-popover" popover aria-labelledby="reference-title"&gt;
+    &lt;h3 id="reference-title"&gt;Reference Target Popover&lt;/h3&gt;
+    &lt;p&gt;Content here...&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;script&gt;
+class ReferenceButton extends HTMLElement {
+    constructor() {
+        super();
+        this.internals = this.attachInternals();
+    }
+
+    connectedCallback() {
+        const targetId = this.getAttribute('popovertarget');
+        if (targetId) {
+            const targetElement = document.getElementById(targetId);
+            if (targetElement) {
+                this.internals.popoverTargetElement = targetElement;
+            }
+        } else {
+            this.internals.popoverTargetElement = null;
+        }
+    }
+}
+&lt;/script&gt;</code></pre>
+
+        <p>While the granular feature approach provides flexibility, it also introduces potential for misuse:</p>
+
+        <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 15px 0;">
+            <h4 style="margin-top: 0; color: #856404;">Example: focusable but not activatable</h4>
+            <pre style="margin: 10px 0;"><code>static elementFeatures = {
+    focusMode: 'control',
+    role: 'button',
+    activation: false
+};</code></pre>
+            <p style="margin-bottom: 0;"><strong>Problem:</strong> Creates a "button" that screen readers can focus and announce as a button, but Space/Enter keys don't work.
+                This violates user expectations and accessibility guidelines.</p>
+        </div>
+
+        <ul>
+            <li><code>keyboardActivation: ['Enter']</code> without <code>role: 'button'</code> - users get keyboard behavior but no semantics.</li>
+            <li><code>popovertarget: true</code> without <code>this.internals.focusMode = 'control';</code> - creates inaccessible popover triggers.</li>
+            <li>Popover invoker that isn't a button or isn't focusable or can't be activated.</li>
+        </ul>
+
+        <h3>🛡️ Is this acceptable?</h3>
+        <div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 5px; padding: 15px; margin: 15px 0;">
+            <h4 style="margin-top: 0; color: #0c5460;">Should the platform provide guardrails?</h4>
+            <ul style="margin-bottom: 0;">
+                <li>Could "bad" combinations have legitimate use cases in advanced scenarios?</li>
+                <li>Does the browser need to provide safe presets?</li>
+                <li>As custom elements are inaccessible by default, authors are already expected to fill accessibility gaps themselves.</li>
+            </ul>
+        </div>
+
+        <h3>What about the submit behavior?</h3>
+        <p>Maybe we could have <code>this.#internals.submitButton = true;</code>?</p>
+
+        <div style="background: #e8f5e8; border: 1px solid #c3e6c3; border-radius: 5px; padding: 15px;">
+            <ul>
+                <li>Must be <code>formAssociated = true</code>, have button role, be focusable, and have keyboard activation.</li>
+                <li>Should trigger form submission on activation, submit event dispatching, form data collection.</li>
+            </ul>
+        </div>
+
+        <pre><code>&lt;form id="demo-form"&gt;
+    &lt;label&gt;
+        Name: &lt;input type="text" name="userName" required&gt;
+    &lt;/label&gt;
+    &lt;label&gt;
+        Email: &lt;input type="email" name="userEmail" required&gt;
+    &lt;/label&gt;
+
+    &lt;!-- Custom submit button --&gt;
+    &lt;submit-button form="demo-form"&gt;Submit Form&lt;/submit-button&gt;
+&lt;/form&gt;
+
+&lt;script&gt;
+class SubmitButton extends HTMLElement {
+    constructor() {
+        super();
+        this.internals = this.attachInternals({
+            features: {
+                activation: true,
+                focusMode: 'control',
+                keyboardActivation: ['Enter', 'Space'],
+                role: 'button',
+                submit: true,
+                formAssociated: true,
+            }
+        });
+
+        // Set up activation callback
+        this.internals.onActivate = (event) =&gt; {
+            console.log('Form submission initiated by custom button');
+        };
+    }
+}
+customElements.define('submit-button', SubmitButton);
+&lt;/script&gt;</code></pre>
+
+        <p>With the <code>submit: true</code> feature, the browser would automatically have activation behavior that matches other submit buttons.</p>
+        <p>However, this proposal to add behavior via the <code>ElementInternals</code> API isn't too well received by some community members
+            who would instead like to have mixins.</p>
+    </div>
+
+    <h1>Label x custom elements</h1>
+
+    <label for="normal-input">Username:</label>
+    <input id="normal-input" name="username"></input>
+    <pre><code>&lt;label for="normal-input"&gt;Username:&lt;/label&gt;
+&lt;input id="normal-input" name="username"&gt;&lt;/input&gt;</code></pre>
+
+    <div class="demo-section">
+        <h2>Form-Associated Custom Elements (FACEs) are labelable</h2>
+        <p>Form-associated custom elements can be properly labeled because they participate in the form labeling system:</p>
+
+        <pre><code>&lt;label for="my-input"&gt;Username:&lt;/label&gt;
+&lt;my-input id="my-input" name="username"&gt;&lt;/my-input&gt;
+
+&lt;script&gt;
+class MyInput extends HTMLElement {
+    static formAssociated = true;
+
+    constructor() {
+        super();
+        this.internals = this.attachInternals();
+    }
+}
+customElements.define('my-input', MyInput);
+&lt;/script&gt;</code></pre>
+
+        <label for="my-input">Username:</label>
+        <my-input id="my-input" name="username"></my-input>
+    </div>
+
+    <div class="demo-section">
+        <h2>1. Custom element with shadow button cannot be labeled</h2>
+        <p>Custom element that contains a native button in its Shadow DOM, associated with a label that is outside in the light DOM.</p>
+        <p>❌ The <code>for</code> attribute cannot cross shadow DOM boundaries.</p>
+
+        <pre><code>&lt;label for="customButton"&gt;Click me:&lt;/label&gt;
+&lt;label-custom-button id="customButton"&gt;Button&lt;/label-custom-button&gt;
+
+&lt;script&gt;
+class LabelCustomButton extends HTMLElement {
+    constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+
+        this.shadowRoot.innerHTML = `
+            &lt;button&gt;&lt;slot&gt;&lt;/slot&gt;&lt;/button&gt;
+        `;
+    }
+}
+customElements.define('label-custom-button', LabelCustomButton);
+&lt;/script&gt;</code></pre>
+        <label for="customButton">Click me:</label>
+        <label-custom-button id="customButton">Button</label-custom-button>
+    </div>
+
+    <div class="demo-section">
+        <h2>2. Custom label with shadow label cannot reference light DOM button</h2>
+        <p>Custom label that contains a native label in its Shadow DOM, referencing a button in the light DOM.</p>
+        <p>❌ The shadow label's <code>for</code> attribute cannot reference elements outside its shadow tree.</p>
+
+        <pre><code>&lt;custom-label for="button"&gt;Click me:&lt;/custom-label&gt;
+&lt;button id="button"&gt;Submit&lt;/button&gt;
+
+&lt;script&gt;
+class CustomLabel extends HTMLElement {
+    constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+
+        this.shadowRoot.innerHTML = `
+            &lt;label&gt;&lt;slot&gt;&lt;/slot&gt;&lt;/label&gt;
+        `;
+    }
+
+    connectedCallback() {
+        const forValue = this.getAttribute('for');
+        if (forValue) {
+            // Try to set the for attribute on the internal label
+            const shadowLabel = this.shadowRoot.querySelector('label');
+            shadowLabel.setAttribute('for', forValue);
+            // This won't work because the target is outside the shadow DOM
+        }
+    }
+}
+customElements.define('custom-label', CustomLabel);
+&lt;/script&gt;</code></pre>
+
+        <custom-label for="button">Click me:</custom-label>
+        <button id="button">Submit</button>
+
+        <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px;">
+            <ul>
+                <li>Clicking the label text doesn't focus the target button</li>
+                <li>Accessibility relationship is not established</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>Current workarounds</h2>
+
+        <h3>1. Element Reflection: <code>ariaDescribedByElements</code></h3>
+
+        <pre><code>&lt;label id="aria-label"&gt;Accessible label:&lt;/label&gt;
+&lt;aria-button id="aria-button"&gt;Click Here&lt;/aria-button&gt;
+
+&lt;script&gt;
+class AriaButton extends HTMLElement {
+    constructor() {
+        super();
+        this.internals = this.attachInternals();
+        this.attachShadow({ mode: 'open' });
+
+        this.shadowRoot.innerHTML = `
+            &lt;button&gt;&lt;slot&gt;&lt;/slot&gt;&lt;/button&gt;
+        `;
+    }
+
+    connectedCallback() {
+        const labelElement = document.getElementById('aria-label');
+        this.internals.ariaLabelledByElements = [labelElement];
+    }
+}
+customElements.define('aria-button', AriaButton);
+&lt;/script&gt;</code></pre>
+
+        <label id="aria-label">Accessible label:</label>
+        <aria-button id="aria-button">Click Here</aria-button>
+
+        <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 15px 0;">
+            <ul>
+                <li>Screen readers will announce the label text.</li>
+                <li>Clicking the label text doesn't activate the button.</li>
+            </ul>
+        </div>
+
+        <h3>2. Using reference target for cross-boundary references</h3>
+        <p>The <code>referenceTarget</code> attribute on <code>ShadowRoot</code> allows specifying an element inside the shadow DOM that can be referenced from outside:</p>
+
+        <pre><code>&lt;reference-custom-label id="refCustomLabel"&gt;Custom Label&lt;/reference-custom-label&gt;
+&lt;button id="refButton" aria-labelledby="refCustomLabel"&gt;Button&lt;/button&gt;
+
+&lt;script&gt;
+class ReferenceCustomLabel extends HTMLElement {
+    constructor() {
+        super();
+        const shadowRoot = this.attachShadow({ mode: 'open' });
+
+        shadowRoot.innerHTML = `
+            &lt;div&gt;Decorative prefix&lt;/div&gt;
+            &lt;label id="actualLabel"&gt;&lt;slot&gt;&lt;/slot&gt;&lt;/label&gt;
+            &lt;div&gt;Decorative suffix&lt;/div&gt;
+        `;
+
+        // Set reference target to the actual label element inside shadow DOM
+        const actualLabel = shadowRoot.getElementById('actualLabel');
+        shadowRoot.referenceTarget = actualLabel;
+    }
+}
+customElements.define('reference-custom-label', ReferenceCustomLabel);
+&lt;/script&gt;</code></pre>
+
+        <reference-custom-label id="refCustomLabel">Custom Label</reference-custom-label>
+        <button id="refButton" aria-labelledby="refCustomLabel">Button</button>
+
+        <div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 5px; padding: 15px; margin: 15px 0;">
+            <ul>
+                <li><code>shadowRoot.referenceTarget</code> specifies which element inside the shadow DOM should be the target of external references.</li>
+                <li>When <code>aria-labelledby="refCustomLabel"</code> is used on the button, it resolves to the <code>actualLabel</code> element inside the shadow DOM.</li>
+                <li>This allows the custom label to have additional decorative elements while exposing the actual label for accessibility.</li>
+                <li>Screen readers properly announce the label text from inside the shadow DOM.</li>
+            </ul>
+        </div>
+
+        <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 15px 0;">
+            <ul style="margin-bottom: 0;">
+                <li>Accessibility relationships work correctly.</li>
+                <li>Doesn't work with <code>for</code> attribute on <code>&lt;label&gt;</code> elements.</li>
+                <li>Only works with ARIA attributes (<code>aria-labelledby</code>, <code>aria-describedby</code>, etc.).</li>
+                <li><code>referenceTarget</code> solves accessibility references but doesn't provide clickable label behavior.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        class CustomButton extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+
+                // Create button in shadow DOM
+                const button = document.createElement('button');
+                button.innerHTML = `
+                    <style>
+                        button {
+                            padding: 10px 16px;
+                            background: #28a745;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        }
+                        button:hover {
+                            background: #218838;
+                        }
+                        button:focus {
+                            outline: 2px solid #80bdff;
+                            outline-offset: 2px;
+                        }
+                    </style>
+                    <slot></slot>
+                `;
+
+                this.shadowRoot.appendChild(button);
+
+                // Store reference for attribute reflection
+                this.button = button;
+            }
+
+            connectedCallback() {
+                // Try to reflect popovertarget to the internal button
+                this.reflectPopovertarget();
+            }
+
+            static get observedAttributes() {
+                return ['popovertarget'];
+            }
+
+            attributeChangedCallback(name, oldValue, newValue) {
+                if (name === 'popovertarget') {
+                    this.reflectPopovertarget();
+                }
+            }
+
+            reflectPopovertarget() {
+                const target = this.getAttribute('popovertarget');
+                if (target && this.button) {
+                    // Attempt to make the shadow button work with popovertarget
+                    // This won't work because popover targets need to be in the same document tree
+                    this.button.setAttribute('popovertarget', target);
+
+                    // Since the above doesn't work, we still need manual implementation
+                    this.button.addEventListener('click', () => {
+                        const popover = document.getElementById(target);
+                        if (popover) {
+                            if (popover.matches(':popover-open')) {
+                                popover.hidePopover();
+                            } else {
+                                popover.showPopover();
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        customElements.define('custom-button', CustomButton);
+
+        // Button and popover in shadow DOM
+        class FullyEncapsulatedButton extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        button {
+                            padding: 10px 16px;
+                            background: #dc3545;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        }
+                        button:hover {
+                            background: #c82333;
+                        }
+                        button:focus {
+                            outline: 2px solid #80bdff;
+                            outline-offset: 2px;
+                        }
+
+                        #internal-popover {
+                            border: 1px solid #333;
+                            border-radius: 8px;
+                            padding: 20px;
+                            background: white;
+                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                            max-width: 300px;
+                        }
+                    </style>
+
+                    <button id="internal-btn" popovertarget="internal-popover">
+                        <slot></slot>
+                    </button>
+
+                    <div id="internal-popover" popover>
+                        <h3>Internal Popover</h3>
+                        <p>This popover is in the shadow DOM and uses native popover API.</p>
+                        <ul>
+                            <li>Uses native <code>popovertarget</code> and <code>popover</code> attributes</li>
+                            <li>Can't be styled from outside or composed</li>
+                        </ul>
+                        <button popovertarget="internal-popover" popovertargetaction="hide">Close</button>
+                    </div>
+                `;
+
+                // No custom event handling needed - native popover API handles everything!
+            }
+        }
+        customElements.define('fully-encapsulated-button', FullyEncapsulatedButton);
+
+        // Custom element that reimplements popovertarget functionality
+        class PopoverInvoker extends HTMLElement {
+            constructor() {
+                super();
+
+                this.internals = this.attachInternals();
+                this.internals.role = 'button';
+                this.internals.ariaExpanded = 'false';
+
+                this.setAttribute('tabindex', '0');
+
+                this.style.display = 'inline-block';
+                this.style.padding = '10px 16px';
+                this.style.background = '#6f42c1';
+                this.style.color = 'white';
+                this.style.border = 'none';
+                this.style.borderRadius = '4px';
+                this.style.cursor = 'pointer';
+                this.style.fontSize = '14px';
+                this.style.userSelect = 'none';
+
+                this.addEventListener('click', this.togglePopover.bind(this));
+                this.addEventListener('keydown', this.handleKeydown.bind(this));
+                this.addEventListener('mouseenter', () => {
+                    this.style.background = '#5a2d91';
+                });
+                this.addEventListener('mouseleave', () => {
+                    this.style.background = '#6f42c1';
+                });
+            }
+
+            handleKeydown(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    this.togglePopover();
+                }
+            }
+
+            togglePopover() {
+                const target = this.getAttribute('popovertarget');
+                if (target) {
+                    const popover = document.getElementById(target);
+                    if (popover) {
+                        if (popover.matches(':popover-open')) {
+                            popover.hidePopover();
+                            this.internals.ariaExpanded = 'false';
+                        } else {
+                            popover.showPopover();
+                            this.internals.ariaExpanded = 'true';
+                        }
+                    }
+                }
+            }
+        }
+        customElements.define('popover-invoker', PopoverInvoker);
+
+        // Form-associated custom input element (labelable)
+        class MyInput extends HTMLElement {
+            static formAssociated = true;
+
+            constructor() {
+                super();
+                this.internals = this.attachInternals();
+                this.attachShadow({ mode: 'open' });
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        :host {
+                            display: inline-block;
+                            min-width: 200px;
+                        }
+                        input {
+                            width: 100%;
+                            padding: 8px 12px;
+                            border: 1px solid #ccc;
+                            border-radius: 4px;
+                            font-size: 14px;
+                            box-sizing: border-box;
+                        }
+                        input:focus {
+                            outline: 2px solid #007acc;
+                            outline-offset: 2px;
+                            border-color: #007acc;
+                        }
+                    </style>
+                    <input type="text" />
+                `;
+            }
+        }
+        customElements.define('my-input', MyInput);
+
+        // Custom button with shadow DOM button (labeling issue)
+        class LabelCustomButton extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+
+                // Button is in shadow DOM
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        button {
+                            padding: 10px 16px;
+                            background: #007acc;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        }
+                        button:hover {
+                            background: #005a9e;
+                        }
+                        button:focus {
+                            outline: 2px solid #80bdff;
+                            outline-offset: 2px;
+                        }
+                    </style>
+                    <button><slot></slot></button>
+                `;
+            }
+        }
+        customElements.define('label-custom-button', LabelCustomButton);
+
+        // Custom label with shadow DOM label (reference issue)
+        class CustomLabel extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        label {
+                            font-weight: bold;
+                            color: #333;
+                            cursor: pointer;
+                        }
+                        label:hover {
+                            color: #007acc;
+                        }
+                    </style>
+                    <label><slot></slot></label>
+                `;
+            }
+
+            connectedCallback() {
+                const forValue = this.getAttribute('for');
+                if (forValue) {
+                    // Try to set the for attribute on the internal label
+                    const shadowLabel = this.shadowRoot.querySelector('label');
+                    shadowLabel.setAttribute('for', forValue);
+                    // This won't work because the target is outside the shadow DOM
+                }
+            }
+        }
+        customElements.define('custom-label', CustomLabel);
+
+        // Reference custom label with reference target
+        class ReferenceCustomLabel extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: 'open' });
+
+                shadowRoot.innerHTML = `
+                    <style>
+                        :host {
+                            display: inline-block;
+                        }
+                        label {
+                            font-weight: bold;
+                            color: #d63384;
+                            cursor: pointer;
+                        }
+                        label:hover {
+                            color: #a02360;
+                        }
+                        .decoration {
+                            font-size: 0.8em;
+                            color: #999;
+                            font-style: italic;
+                        }
+                    </style>
+                    <span class="decoration">→ </span>
+                    <label id="actualLabel"><slot></slot></label>
+                    <span class="decoration"> ←</span>
+                `;
+                // Set reference target to the actual label element inside shadow DOM
+                const actualLabel = shadowRoot.getElementById('actualLabel');
+                shadowRoot.referenceTarget = actualLabel;
+            }
+        }
+        customElements.define('reference-custom-label', ReferenceCustomLabel);
+
+        // Working custom button with manual event forwarding
+        class WorkingCustomButton extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        button {
+                            padding: 10px 16px;
+                            background: #28a745;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        }
+                        button:hover {
+                            background: #218838;
+                        }
+                        button:focus {
+                            outline: 2px solid #80bdff;
+                            outline-offset: 2px;
+                        }
+                    </style>
+                    <button><slot></slot></button>
+                `;
+
+                // Forward clicks from the custom element to the internal button
+                this.addEventListener('click', (event) => {
+                    // Only forward if the click wasn't already on the button
+                    if (event.target === this) {
+                        const button = this.shadowRoot.querySelector('button');
+                        button.click();
+                        button.focus();
+                    }
+                });
+            }
+        }
+        customElements.define('working-custom-button', WorkingCustomButton);
+
+        // Form-associated custom button (properly labelable)
+        class FormButton extends HTMLElement {
+            static formAssociated = true;
+
+            constructor() {
+                super();
+                this.internals = this.attachInternals();
+                this.attachShadow({ mode: 'open' });
+
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        button {
+                            padding: 10px 16px;
+                            background: #6f42c1;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        }
+                        button:hover {
+                            background: #5a2d91;
+                        }
+                        button:focus {
+                            outline: 2px solid #80bdff;
+                            outline-offset: 2px;
+                        }
+                    </style>
+                    <button><slot></slot></button>
+                `;
+
+                // Form-associated elements are automatically labelable
+                // Browser handles the label association
+            }
+        }
+        customElements.define('form-button', FormButton);
+
+        // Aria button with ariaLabelledByElements
+        class AriaButton extends HTMLElement {
+            constructor() {
+                super();
+                this.internals = this.attachInternals();
+                this.attachShadow({ mode: 'open' });
+
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        button {
+                            padding: 10px 16px;
+                            background: #17a2b8;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        }
+                        button:hover {
+                            background: #138496;
+                        }
+                        button:focus {
+                            outline: 2px solid #80bdff;
+                            outline-offset: 2px;
+                        }
+                    </style>
+                    <button><slot></slot></button>
+                `;
+            }
+
+            connectedCallback() {
+                const labelElement = document.getElementById('aria-label');
+                this.internals.ariaLabelledByElements = [labelElement];
+            }
+        }
+        customElements.define('aria-button', AriaButton);
+    </script>
+</body>
+</html>
