@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mixins & Custom Attributes: An Interactive Exploration</title>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --secondary: #dc004e;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --bg: #ffffff;
+            --surface: #f5f5f5;
+            --text: #212121;
+            --text-secondary: #757575;
+            --border: #e0e0e0;
+            --code-bg: #2d2d2d;
+            --code-text: #f8f8f2;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #121212;
+                --surface: #1e1e1e;
+                --text: #ffffff;
+                --text-secondary: #b0b0b0;
+                --border: #333333;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--bg);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        nav {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        nav a {
+            color: var(--primary);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        nav a:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        section {
+            background: var(--surface);
+            padding: 30px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 2rem;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: var(--secondary);
+            margin: 25px 0 15px;
+            font-size: 1.5rem;
+        }
+
+        h4 {
+            color: var(--text);
+            margin: 20px 0 10px;
+            font-size: 1.2rem;
+        }
+
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            position: relative;
+            transition: color 0.2s ease;
+        }
+
+        a:hover {
+            color: #1565c0;
+            text-decoration: underline;
+        }
+
+        a:visited {
+            color: #7b1fa2;
+        }
+
+        a:focus {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+            border-radius: 2px;
+        }
+
+        a:active {
+            color: var(--secondary);
+        }
+
+        /* List styling */
+        ul, ol {
+            margin-left: 50px;
+            padding-left: 0;
+        }
+
+        /* Style for external links */
+        a[href^="http"]::after,
+        a[href^="https://"]::after {
+            content: "↗";
+            font-size: 0.8em;
+            margin-left: 3px;
+            opacity: 0.6;
+        }
+
+        /* Links inside paragraphs and lists */
+        p a,
+        li a {
+            font-weight: 500;
+            border-bottom: 1px solid transparent;
+        }
+
+        p a:hover,
+        li a:hover {
+            border-bottom-color: var(--primary);
+        }
+
+        /* Code-styled links */
+        code a {
+            font-family: inherit;
+            background: rgba(25, 118, 210, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: var(--bg);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .comparison-table th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table tr:hover {
+            background: rgba(25, 118, 210, 0.05);
+        }
+
+        .pro {
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        .con {
+            color: var(--secondary);
+            font-weight: 500;
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Pre and code elements */
+        pre {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            border-radius: 0;
+            display: block;
+            color: inherit;
+        }
+
+        /* Inline code */
+        p code,
+        li code,
+        td code {
+            background: rgba(25, 118, 210, 0.1);
+            color: var(--primary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .demo-area {
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #1565c0;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .output {
+            background: var(--surface);
+            padding: 15px;
+            border-radius: 4px;
+            min-height: 50px;
+            margin-top: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-proposed {
+            background: var(--warning);
+            color: white;
+        }
+
+        .status-experimental {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .status-partial {
+            background: #ff9800;
+            color: white;
+        }
+
+        .info-box {
+            background: rgba(25, 118, 210, 0.1);
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .warning-box {
+            background: rgba(255, 152, 0, 0.1);
+            border-left: 4px solid var(--warning);
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .use-case {
+            background: var(--bg);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border-left: 3px solid var(--success);
+        }
+
+        .resources {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .resource-card {
+            background: var(--bg);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .resource-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .resource-card h4 {
+            margin-top: 0;
+        }
+
+        .resource-card a {
+            color: var(--primary);
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .resource-card a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-secondary);
+            margin-top: 50px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            nav ul {
+                flex-direction: column;
+            }
+
+            .comparison-table {
+                font-size: 0.9rem;
+            }
+
+            .comparison-table th,
+            .comparison-table td {
+                padding: 10px;
+            }
+        }
+
+        /* Custom element styles for demos */
+        custom-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background: var(--success);
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        custom-button:hover {
+            background: #45a049;
+        }
+
+        custom-label {
+            display: inline-block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: var(--text);
+        }
+
+        .demo-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 400px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        input[type="text"],
+        input[type="email"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 1rem;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        input:focus {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Mixins: Exploration</h1>
+            <p class="subtitle">Ana Sollano Kim</p>
+            <p class="date">November 2025</p>
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="#introduction">Why?</a></li>
+                <li><a href="#problem">The Problem</a></li>
+                <li><a href="#proposals">Potential solutions</a></li>
+                <li><a href="#comparison">Comparison</a></li>
+                <li><a href="#future-proposals">Future</a></li>
+                <li><a href="#demos">Demos</a></li>
+                <li><a href="#resources">Resources</a></li>
+            </ul>
+        </nav>
+
+        <section id="introduction">
+            <h2>Why?</h2>
+            <p>
+                Custom element authors frequently need custom elements to leverage platform behaviors that are currently 
+                exclusive to native HTML elements. These behaviors include 
+                <a href="https://github.com/WICG/webcomponents/issues/814">form submission</a>, 
+                <a href="https://github.com/whatwg/html/issues/9110">popover invocation</a>, 
+                <a href="https://github.com/whatwg/html/issues/5423#issuecomment-1517653183">label behaviors</a>, 
+                <a href="https://github.com/whatwg/html/issues/10220">custom elements acting as forms</a>, 
+                <a href="https://github.com/whatwg/html/issues/11061#issuecomment-3250415103">radio button grouping</a>, 
+                and more. This document explores various proposals and approaches to solve this problem.
+            </p>
+
+            <div class="info-box">
+                <strong>Core use case:</strong> Enable autonomous custom elements to acquire behaviors already 
+                implemented in the platform (like submit buttons, labels, form participation) without requiring 
+                excessive JavaScript or reimplementation of platform logic.
+            </div>
+        </section>
+
+        <section id="problem">
+            <h2>The Problem</h2>
+
+            <h3>Why can't custom elements do everything native elements can?</h3>
+
+            <div class="use-case">
+                <h4>Use case 1: Custom submit button</h4>
+                <p>
+                    Custom button that can submit a form, just like <code>&lt;button type="submit"&gt;</code> 
+                    or <code>&lt;input type="submit"&gt;</code>.
+                </p>
+                <pre><code>&lt;custom-button&gt;Submit&lt;/custom-button&gt;</code></pre>
+                <p>❌ Can't submit forms.</p>
+            </div>
+
+            <div class="use-case">
+                <h4>Use case 2: Custom label</h4>
+                <p>Custom element that can have the role of a label.</p>
+                <pre><code>&lt;custom-label for="myInput"&gt;Name&lt;/custom-label&gt;
+&lt;input id="myInput"&gt;</code></pre>
+                <p>❌ Clicking the custom label doesn't focus the input and can't actually have "label" role.</p>
+            </div>
+
+            <div class="use-case">
+                <h4>Use case 3: Custom button can't invoke popovers or commands</h4>
+                <p>
+                    You want a custom button to invoke popovers using the 
+                    <a href="https://developer.mozilla.org/en-US/docs/Web/API/Popover_API">Popover API</a> 
+                    or trigger commands with the 
+                    <a href="https://developer.mozilla.org/en-US/docs/Web/API/Invoker_Commands_API">Invoker Commands API</a>.
+                </p>
+                <pre><code>&lt;custom-button popovertarget="my-popover"&gt;Open Popover&lt;/custom-button&gt;
+&lt;div id="my-popover" popover&gt;Popover content&lt;/div&gt;
+
+&lt;custom-button command="show-dialog" commandfor="my-dialog"&gt;Show Dialog&lt;/custom-button&gt;
+&lt;dialog id="my-dialog"&gt;Dialog content&lt;/dialog&gt;</code></pre>
+                <p>
+                    ❌ <code>popovertarget</code> and <code>popovertargetaction</code> only work on <code>&lt;button&gt;</code> 
+                    and <code>&lt;input&gt;</code> elements.<br>
+                    ❌ <code>command</code> and <code>commandfor</code> attributes only work on native buttons.<br>
+                </p>
+                <div class="info-box">
+                    These are declarative platform features that let web authors control popovers and dialogs without JavaScript. 
+                    Custom elements can't use them, forcing developers to write custom JavaScript event handlers and manage 
+                    state manually.
+                </div>
+            </div>
+
+            <div class="use-case">
+                <h4>Use case 4: Custom element as a form</h4>
+                <p>
+                    You want a custom element to act like a <code>&lt;form&gt;</code> element, 
+                    collecting and submitting data from its descendant form controls.
+                </p>
+                <pre><code>&lt;custom-form action="/submit" method="post"&gt;
+    &lt;input name="username"&gt;
+    &lt;input name="password" type="password"&gt;
+    &lt;button type="submit"&gt;Login&lt;/button&gt;
+&lt;/custom-form&gt;</code></pre>
+                <p>❌ Custom elements can't act as form containers or participate in form submission.</p>
+                <div class="info-box">
+                    This would enable custom components to encapsulate form behavior while maintaining 
+                    standard form semantics and accessibility. See 
+                    <a href="https://github.com/whatwg/html/issues/10220">WHATWG HTML issue #10220</a>.
+                </div>
+            </div>
+
+            <div class="use-case">
+                <h4>Use case 5: Custom radio button groups</h4>
+                <p>
+                    You want custom elements to participate in radio button grouping behavior, 
+                    where selecting one deselects others in the same group.
+                </p>
+                <pre><code>&lt;custom-radio name="theme" value="light"&gt;Light Theme&lt;/custom-radio&gt;
+&lt;custom-radio name="theme" value="dark"&gt;Dark Theme&lt;/custom-radio&gt;
+&lt;custom-radio name="theme" value="auto"&gt;Auto Theme&lt;/custom-radio&gt;</code></pre>
+                <p>❌ Custom elements can't participate in radio button grouping or mutual exclusion behavior.</p>
+                <div class="info-box">
+                    Radio button semantics require platform-level coordination between elements with the same 
+                    <code>name</code> attribute. This can't be fully polyfilled with JavaScript alone.
+                </div>
+            </div>
+
+            <h3>Current solutions & their limitations</h3>
+
+            <h4>1. Customized built-ins (<code>is/extends</code> syntax)</h4>
+            <pre><code>class FancyButton extends HTMLButtonElement {
+    constructor() {
+        super();
+    }
+}
+customElements.define('fancy-button', FancyButton, { extends: 'button' });
+
+// Usage:
+&lt;button is="fancy-button"&gt;Click me&lt;/button&gt;</code></pre>
+
+            <p><span class="pro">✅</span></p>
+            <ul>
+                <li>Inherits all native button behaviors and styling.</li>
+                <li>Works with form submission and accessibility.</li>
+            </ul>
+
+            <p><span class="con">❌</span></p>
+            <ul>
+                <li>
+                    Not supported in 
+                    <a href="https://github.com/WebKit/standards-positions/issues/97#issuecomment-1328880274">WebKit</a> 
+                    (deal-breaker for interoperability).
+                </li>
+                <li>Can't attach shadow DOM to most customized built-ins.</li>
+                <li>
+                    Can't use the 
+                    <a href="https://developer.mozilla.org/en-US/docs/Web/API/ElementInternals">Element Internals API</a>.
+                </li>
+                <li>Logically different from extended element but can't use <code>ElementInternals</code> for a11y customizations.</li>
+                <li>"Awkward" <code>is=</code> syntax feels unnatural in HTML.</li>
+            </ul>
+
+            <h4>2. Form-associated custom elements (FACE)</h4>
+            <pre><code>class CustomInput extends HTMLElement {
+    static formAssociated = true;
+
+    constructor() {
+        super();
+        this.internals_ = this.attachInternals();
+    }
+
+    formResetCallback() { /* ... */ }
+    formStateRestoreCallback() { /* ... */ }
+}
+customElements.define('custom-input', CustomInput);</code></pre>
+            <p><span class="pro">✅</span></p>
+            <ul>
+                <li>Supported in all modern browsers.</li>
+            </ul>
+
+            <p><span class="con">❌</span></p>
+            <ul>
+                <li>Can't trigger form submission.</li>
+                <li>Can't use <code>popovertarget</code>, <code>commandfor</code>, etc.</li>
+                <li>Can't act as a label for other controls.</li>
+            </ul>
+
+            <div class="warning-box">
+                There's no way for autonomous custom elements to acquire specific platform 
+                behaviors like button activation, label association, or other capabilities that 
+                native elements have.
+            </code></pre>
+        </section>
+
+        <section id="proposals">
+            <h2>Potential solutions</h2>
+
+            <h3>1. Custom attributes <span class="status-badge status-proposed">Proposed</span></h3>
+            <p>
+                Allow developers to define custom attributes with lifecycle callbacks that can add behavior to 
+                any element.
+            </p>
+
+            <pre><code>// Define a custom attribute
+class LogAttribute extends Attribute {
+    connectedCallback() {
+        this.ownerElement.addEventListener('click', 
+            () => console.log(this.value)
+        );
+    }
+
+    disconnectedCallback() {
+        // Cleanup
+    }
+
+    changedCallback() {
+        // Value changed
+    }
+}
+HTMLElement.attributeRegistry.define('log-to-console', LogAttribute);
+
+// Usage:
+&lt;div log-to-console="Button clicked!"&gt;Click me&lt;/div&gt;</code></pre><span class="pro">✅</span></p>
+            <ul>
+                <li>Works with native and custom elements.</li>
+                <li>Can use multiple attributes (composability).</li>
+                <li>Lifecycle model similar to custom elements.</li>
+            </ul>
+
+            <p><span class="con">❓</span></p>
+            <ul>
+                <li>
+                    Authors must implement all behavior in JavaScript.
+                    The browser only provides the mechanism (lifecycle hooks, attribute registry). For example, to 
+                    implement popover behavior on a custom element, authors would create a custom attribute but 
+                    still need to manually implement all the popover logic that native buttons get automatically with 
+                    <code>popovertarget</code>.
+                </li>
+                <li>
+                    There are performance concerns with <code>Attr</code> node creation. Implementations optimize attributes, 
+                    they're not <code>Attr</code> objects.
+                </li>
+                <li>
+                    If behaviors depend on pairs or groups of attributes, like <code>popovertarget</code> and 
+                    <code>popovertargetaction</code>, and each attribute is implemented as an independent 
+                    <code>Attr</code> class, developers need a way to make them cooperate without duplicating 
+                    logic.
+                </li>
+                <li>
+                    Namespace/naming conflicts need resolution to avoid collisions with standard attributes, future 
+                    HTML attributes, or third-party libraries.
+                </li>
+                <li>Property reflection not currently considered for MVP.</li>
+            </ul>
+
+            <h3>2. ES Decorators <span class="status-badge status-experimental">Stage 3</span></h3>
+            <p>
+                TC39 proposal for decorator syntax that could be used with custom elements.
+            </p>
+
+            <pre><code>// Decorator function
+function formSubmitter(value, { kind, name }) {
+    return class extends value {
+        connectedCallback() {
+            super.connectedCallback?.();
+            this.addEventListener('click', () => {
+                const form = this.closest('form');
+                if (form) {
+                    form.requestSubmit(this);
+                }
+            });
+        }
+    };
+}
+
+// Usage
+@formSubmitter
+class SubmitButton extends HTMLElement {
+    // Implementation
+}
+</code></pre>
+
+            <p><span class="pro">✅</span></p>
+            <ul>
+                <li>Works well with classes.</li>
+                <li>A class can have multiple decorators (composability).</li>
+                <li>Stage 3 in TC39 (will be implemented by browsers eventually).</li>
+                <li>Can decorate classes, methods, fields, accessors.</li>
+            </ul>
+
+            <p><span class="con">❌</span></p>
+            <ul>
+                <li>Authors must implement all behavior in JavaScript (no declarative way of specifying behavior).</li>
+                <li>Web authors can't access native behaviors.</li>
+                <li>Not yet available in browsers.</li>
+            </ul>
+
+            <h3>3. JavaScript class mixins <span class="status-badge status-experimental">Available Today</span></h3>
+            <p>
+                Use JavaScript to create composable class mixins (subclass factories).
+            </p>
+
+            <pre><code>// Mixin as a subclass factory
+const ButtonBehaviorMixin = (superclass) => class extends superclass {
+    connectedCallback() {
+        super.connectedCallback?.();
+        this.addEventListener('click', this.handleActivation);
+    }
+
+    handleActivation() {
+        // Button activation logic
+    }
+};
+
+const FormSubmitMixin = (superclass) => class extends superclass {
+    connectedCallback() {
+        super.connectedCallback?.();
+        // Form submission logic
+    }
+};
+
+// Compose mixins
+class CustomButton extends ButtonBehaviorMixin(FormSubmitMixin(HTMLElement)) {
+    constructor() {
+        super();
+        // Custom button implementation
+    }
+}
+</code></pre>
+            <span class="pro">✅</span></p>
+            <ul>
+                <li>
+                    Available today, no platform changes needed. Related proposal to standarize 
+                    a more readable syntax for mixins <a href="https://github.com/tc39/proposal-mixins">
+                        Maximally Minimal Mixins</a>.
+                </li>
+                <li>Composable.</li>
+                <li>Standard JavaScript patterns.</li>
+                <li>Good for sharing behavior between custom elements.</li>
+            </ul>
+
+            <p><span class="con">❌</span></p>
+            <ul>
+                <li>Doesn't give access to platform behaviors.</li>
+                <li>Requires userland implementation of everything.</li>
+                <li>Complex inheritance chains can be hard to debug.</li>
+            </ul>
+        </section>
+
+        <section id="comparison">
+            <h2>Feature comparison</h2>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Custom Attributes</th>
+                        <th>JS Mixins</th>
+                        <th>Decorators</th>
+                        <th>FACEs</th>
+                        <th>Customized Built-ins</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Browser Support</td>
+                        <td>❌ Proposed</td>
+                        <td>✅</td>
+                        <td>⚠️ Transpile (Chromium soon)</td>
+                        <td>✅</td>
+                        <td>⚠️ Not Webkit</td>
+                    </tr>
+                    <tr>
+                        <td>Platform Behaviors</td>
+                        <td>Potential</td>
+                        <td>Potential</td>
+                        <td>Potential</td>
+                        <td>⚠️ Form only</td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td>Works with Native Elements</td>
+                        <td>✅</td>
+                        <td>❌</td>
+                        <td>❌</td>
+                        <td>❌</td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td>Shadow DOM Support</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                        <td>⚠️ Limited</td>
+                    </tr>
+                    <tr>
+                        <td>Composability</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                        <td>⚠️ Single element</td>
+                        <td>❌</td>
+                    </tr>
+                    <tr>
+                        <td>Performance</td>
+                        <td>⚠️ Concerns</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td>Developer Ergonomics</td>
+                        <td>✅ Similar to CE</td>
+                        <td>⚠️ Complex</td>
+                        <td>✅ Clean syntax</td>
+                        <td>✅ Simple</td>
+                        <td>⚠️ "Awkward"</td>
+                    </tr>
+                    <tr>
+                        <td>Framework Patterns</td>
+                        <td>Matches Vue/Alpine</td>
+                        <td>Common JS</td>
+                        <td>Python-like</td>
+                        <td>Custom Elements</td>
+                        <td>Unique</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="future-proposals">
+            <h2>🔮 Platform-provided mixins</h2>
+            <p>
+                There's emerging discussion about the platform itself providing reusable behavior classes that custom 
+                elements could adopt.
+            </p>
+
+            <h3> Platform behavior mixins via ElementInternals</h3>
+            <p>
+                As discussed in 
+                <a href="https://github.com/whatwg/html/issues/11061#issuecomment-2673966134" target="_blank">this comment</a> 
+                and in 
+                <a href="https://github.com/WICG/webcomponents/issues/814#issuecomment-3392480397" target="_blank">
+                    WICG issue #814</a>, the platform could expose behavior classes that developers attach to custom elements 
+                through <code>ElementInternals</code>.
+            </p>
+
+            <pre><code>import {CustomMixin} from './my-mixin.js'
+
+class CustomButton extends HTMLElement {
+    static formAssociated = true;
+
+    constructor() {
+        super();
+        const internals = this.attachInternals();
+
+        // Add the built-in mixin for button activation behavior
+        // This grants popovertarget, commandfor, click activation, etc.
+        internals.addBehavior(HTMLButtonActivationBehavior);
+
+        // Could also add form submission behavior.
+        internals.addBehavior(HTMLSubmitBehavior);
+
+        // Or label behavior.
+        internals.addBehavior(HTMLLabelBehavior);
+
+        // Can also adopt custom userland behaviors.
+        internals.addBehavior(CustomMixin);
+    }
+}</code></pre>
+
+            <h3>How it would work</h3>
+            <div class="info-box">
+                The browser provides behavior classes (like <code>HTMLButtonActivationBehavior</code>) that encapsulate 
+                specific platform capabilities. Custom elements can mix and match these behaviors to get exactly the 
+                platform integration they need.
+            </div>
+
+            <h4>Examples of platform-provided behavior classes</h4>
+            <ul>
+                <li>
+                    <code>HTMLButtonActivationBehavior</code>: click/keyboard activation, <code>popovertarget</code>,
+                    <code>commandfor</code> support, implicit ARIA <code>role="button"</code>.
+                </li>
+                <li>
+                    <code>HTMLSubmitBehavior</code>: the FACE can be selected by <code>:default</code>, can be 
+                    automatically clicked by the implicit submission of other form elementsm, and has implicit ARIA 
+                    <code>role="button"</code>.
+                </li>
+                <li><code>HTMLResetBehavior</code>: the FACE can trigger the associated form to reset.</li>
+                <li><code>HTMLLabelBehavior</code>: has label association via 'for' attribute and click delegation.</li>
+                <li><code>HTMLFormBehavior</code>: can act as a form container and collect descendant controls.</li>
+                <li><code>HTMLRadioGroupBehavior</code>: can provide radio button mutual exclusion by name.</li>
+            </ul>
+
+            <h4>Each behavior class would have to provide</h4>
+            <ul>
+                <li><strong>Event handlers:</strong> Automatic wiring of events like click, keydown, etc.</li>
+                <li><strong>Attributes:</strong> Handling of related attributes (disabled, for, popovertarget, etc.)</li>
+                <li><strong>CSS pseudo-classes:</strong> Matching of relevant selectors (:disabled, :default, etc.)</li>
+                <li><strong>ARIA:</strong> Default roles and properties.</li>
+            </ul>
+
+            <h3>Spec changes needed (WIP)</h3>
+            <p><a href="https://html.spec.whatwg.org/dev/custom-elements.html">HTML Standard's Custom Elements section</a>:</p>
+            <ol>
+                <li>
+                    <strong>Define behavior interface:</strong> Create a <code>HTMLElementBehavior</code> base interface 
+                    that all platform behaviors implement.
+                </li>
+                <li>
+                    <strong>Extend <code>ElementInternals</code>:</strong> Add <code>addBehavior()</code>❓, <code>removeBehavior()</code>❓, 
+                    and <code>hasBehavior()</code>❓ methods.
+                </li>
+                <li>
+                    <strong>Behavior composition rules:</strong>
+                    <ul>
+                        <li>
+                            Conflict resolution (e.g., can't have both <code>HTMLSubmitBehavior</code> and 
+                            <code>HTMLResetBehavior</code>).
+                        </li>
+                        <li>
+                            Prerequisite behaviors (e.g., <code>HTMLSubmitBehavior</code> requires 
+                            <code>formAssociated = true</code>).
+                        </li>
+                        <li>Handler ordering</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Integration with existing specs:</strong>
+                    <ul>
+                        <li>Update form submission algorithm to check for <code>HTMLSubmitBehavior</code>.</li>
+                        <li>Update popover invocation to check for <code>HTMLButtonActivationBehavior</code>.</li>
+                        <li>Update label activation to check for <code>HTMLLabelBehavior</code>.</li>
+                        <li>Update CSS pseudo-class matching (:disabled, :default, etc.)❓</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h3>Alternative: Behavior mixins as classes (userland-style)</h3>
+            <p>
+                Instead of attaching behaviors through <code>ElementInternals</code>, behaviors could be exposed 
+                as mixin functions that extend the prototype chain. This approach, 
+                <a href="https://github.com/WICG/webcomponents/issues/814#issuecomment-3392480397">proposed here</a>, 
+                handles instance properties and methods while providing composition.
+            </p>
+
+            <pre><code>class CustomButton extends HTMLButtonBehavior(HTMLElement) {
+    constructor() {
+        super();
+        this.attachShadow({ mode: "open" });
+        this.shadowRoot.innerHTML = "&lt;slot&gt;&lt;/slot&gt;";
+    }
+}
+
+// Multiple behaviors compose naturally
+class SubmitButton extends HTMLSubmitBehavior(HTMLButtonBehavior(HTMLElement)) {
+    // Inherits both button activation and form submission behaviors
+}</code></pre>
+
+            <div class="info-box">
+                Mixins naturally add properties and methods to the prototype chain, avoiding instance monkey-patching. 
+                Platform behaviors that need to add instance properties (like internal state) or methods (like 
+                activation handlers) can do so. See 
+                <a href="https://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/">
+                    Real Mixins with JavaScript Classes</a> for detailed explanation of this pattern.
+            </div>
+
+            <p>
+                This approach would require:
+            </p>
+            <ul>
+                <li>Exposing platform behavior mixins.</li>
+                <li>Each behavior is a function that takes a superclass and returns a subclass with added capabilities.</li>
+                <li>Behaviors can add methods, properties, and lifecycle hooks ❓ to the prototype.</li>
+                <li>Natural composition through prototype chain.</li>
+            </ul>
+
+            <p><span class="pro">✅</span></p>
+            <ul>
+                <li>Properties and methods on prototype.</li>
+                <li>Uses well-understood class extension patterns.</li>
+                <li>Multiple mixins compose through prototype chain.</li>
+                <li>Same pattern developers already use for userland mixins.</li>
+            </ul>
+        </section>
+
+        <section id="demos">
+            <h2>🎮 Demos</h2>
+
+            <h3>Demo 1: JS mixin pattern</h3>
+            <div class="demo-area">
+                <p>Working JS mixin pattern available today.</p>
+                <div class="demo-controls">
+                    <logging-button></logging-button>
+                </div>
+                <div class="output" id="mixin-output"></div>
+            </div>
+
+            <pre><code>// The mixin (subclass factory)
+const LoggingMixin = (superclass) => class extends superclass {
+    connectedCallback() {
+        super.connectedCallback?.();
+        this.addEventListener('click', () => {
+            this.log('Button clicked!');
+        });
+    }
+
+    log(message) {
+        const output = document.getElementById('mixin-output');
+        const time = new Date().toLocaleTimeString();
+        output.textContent += `[${time}] ${message}\n`;
+    }
+};
+
+// Using the mixin
+class LoggingButton extends LoggingMixin(HTMLElement) {
+    connectedCallback() {
+        super.connectedCallback();
+        this.log('Button connected to DOM');
+    }
+}
+customElements.define('logging-button', LoggingButton);</code></pre>
+
+            <h3>Demo 2: Form-Associated Custom Element</h3>
+            <div class="demo-area">
+                <p>This shows a form-associated custom element.</p>
+                <form class="demo-form" id="face-demo-form">
+                    <div class="form-group">
+                        <label for="regular-input">Regular Input:</label>
+                        <input type="text" id="regular-input" name="regular" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Custom Input (form-associated):</label>
+                        <custom-input name="custom" required></custom-input>
+                    </div>
+                    <button type="submit">Submit Form</button>
+                    <button type="reset">Reset Form</button>
+                </form>
+                <div class="output" id="face-output">Form events will appear here...</div>
+            </div>
+
+            <pre><code>class CustomInput extends HTMLElement {
+    static formAssociated = true;
+
+    constructor() {
+        super();
+        this.internals = this.attachInternals();
+        this.attachShadow({ mode: 'open' });
+
+        this.shadowRoot.innerHTML = '&lt;input type="text" /&gt;';
+
+        this.input = this.shadowRoot.querySelector('input');
+        this.input.addEventListener('input', () => {
+            this.internals.setFormValue(this.input.value);
+            this.checkValidity();
+        });
+    }
+
+    checkValidity() {
+        if (this.hasAttribute('required') && !this.input.value) {
+            this.internals.setValidity(
+                { valueMissing: true },
+                'This field is required'
+            );
+        } else {
+            this.internals.setValidity({});
+        }
+    }
+
+    formResetCallback() {
+        this.input.value = '';
+        this.internals.setFormValue('');
+    }
+}
+
+customElements.define('custom-input', CustomInput);</code></pre>
+        </section>
+
+        <section id="resources">
+            <h2>📚 Resources & references</h2>
+
+            <div class="resources">
+                <div class="resource-card">
+                    <h4>TPAC 2023 Breakout</h4>
+                    <p>Discussion on alternatives to customized built-ins</p>
+                    <a href="https://github.com/w3c/tpac2023-breakouts/issues/44" target="_blank">
+                        w3c/tpac2023-breakouts#44
+                    </a>
+                </div>
+                <div class="resource-card">
+                    <h4>Custom attributes proposal</h4>
+                    <p>Main proposal for custom attributes on all elements</p>
+                    <a href="https://github.com/WICG/webcomponents/issues/1029" target="_blank">
+                        WICG/webcomponents#1029
+                    </a>
+                </div>
+                <div class="resource-card">
+                    <h4>TPAC 2025 Custom Attrs</h4>
+                    <p>Latest discussion session</p>
+                    <a href="https://www.w3.org/2025/11/12-custom-attrs-minutes.html" target="_blank">
+                        w3c/tpac2025-breakouts#46
+                    </a>
+                </div>
+                <div class="resource-card">
+                    <h4>Meeting Minutes (2025)</h4>
+                    <p>Latest meeting discussion notes</p>
+                    <a href="https://www.w3.org/2025/11/12-custom-attrs-minutes.html" target="_blank">
+                        W3C Minutes
+                    </a>
+                </div>
+                <div class="resource-card">
+                    <h4>ElementInternals.type</h4>
+                    <p>Proposal for customized built-in alternative</p>
+                    <a href="https://github.com/whatwg/html/issues/11061" target="_blank">
+                        whatwg/html#11061
+                    </a>
+                </div>
+                <div class="resource-card">
+                    <h4>Real Mixins with JS Classes</h4>
+                    <p>Justin Fagnani's article on JavaScript mixins</p>
+                    <a href="https://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/" target="_blank">
+                        justinfagnani.com
+                    </a>
+                </div>
+                <div class="resource-card">
+                    <h4>Decorators in ES7</h4>
+                    <p>Raganwald's article on using decorators as mixins</p>
+                    <a href="https://raganwald.com/2015/06/26/decorators-in-es7.html" target="_blank">
+                        raganwald.com
+                    </a>
+                </div>
+                <div class="resource-card">
+                    <h4>TC39 Decorators Proposal</h4>
+                    <p>Official ECMAScript decorators proposal (Stage 3)</p>
+                    <a href="https://github.com/tc39/proposal-decorators" target="_blank">
+                        tc39/proposal-decorators
+                    </a>
+                </div>
+                <div class="resource-card">
+                    <h4>Form-Associated Custom Elements</h4>
+                    <p>Being a submit button discussion</p>
+                    <a href="https://github.com/WICG/webcomponents/issues/814" target="_blank">
+                        WICG/webcomponents#814
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <h3>Key takeaways</h3>
+        <div class="info-box">
+            <ul>
+                <li>Developers need custom elements to have access to native behaviors.</li>
+                <li><strong>Custom attributes:</strong> promising, but there's no implementor commitment yet.</li>
+                <li>
+                    <strong>JS mixins/decorators:</strong> syntax is available today, but they just provide userland 
+                    implementations of behaviors.
+                </li>
+                <li><strong>The future:</strong> platform-provided mixins? Custom attributes? Both?</li>
+            </ul>
+        </div>
+
+        <footer>
+            <p>
+                Created to explore mixins, decorators, and custom attributes.<br>
+                Last updated: November 2025
+            </p>
+            <p>
+                Ana Sollano Kim
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Demo 1: JavaScript Mixin Pattern
+        const LoggingMixin = (superclass) => class extends superclass {
+            connectedCallback() {
+                if (super.connectedCallback) {
+                    super.connectedCallback();
+                }
+                this.addEventListener('click', () => {
+                    this.log('Button clicked!');
+                });
+            }
+
+            log(message) {
+                const output = document.getElementById('mixin-output');
+                const time = new Date().toLocaleTimeString();
+                output.textContent += `[${time}] ${message}\n`;
+            }
+        };
+
+        class LoggingButton extends LoggingMixin(HTMLElement) {
+            connectedCallback() {
+                super.connectedCallback();
+                this.textContent = 'Log click';
+                this.style.cssText = 'padding: 10px 20px; background: var(--success); '+
+                'color: white; border: none; border-radius: 4px; cursor: pointer;';
+                this.log('Button connected to DOM');
+            }
+        }
+        customElements.define('logging-button', LoggingButton);
+
+        // Demo 2: Form-Associated Custom Element
+        class CustomInput extends HTMLElement {
+            static formAssociated = true;
+
+            constructor() {
+                super();
+                this.internals = this.attachInternals();
+                this.attachShadow({ mode: 'open' });
+
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        input {
+                            width: 100%;
+                            padding: 8px 12px;
+                            border: 1px solid var(--border);
+                            border-radius: 4px;
+                            font-size: 1rem;
+                            background: var(--bg);
+                            color: var(--text);
+                            font-family: inherit;
+                        }
+                        input:focus {
+                            outline: 2px solid var(--primary);
+                            outline-offset: 2px;
+                        }
+                        input:invalid {
+                            border-color: var(--secondary);
+                        }
+                    </style>
+                    <input type="text" />
+                `;
+
+                this.input = this.shadowRoot.querySelector('input');
+                this.input.addEventListener('input', () => {
+                    this.internals.setFormValue(this.input.value);
+                    this.checkValidity();
+                    this.logEvent('Input changed');
+                });
+            }
+
+            checkValidity() {
+                if (this.hasAttribute('required') && !this.input.value) {
+                    this.internals.setValidity(
+                        { valueMissing: true },
+                        'This field is required',
+                        this.input
+                    );
+                } else {
+                    this.internals.setValidity({});
+                }
+            }
+
+            formResetCallback() {
+                this.input.value = '';
+                this.internals.setFormValue('');
+                this.logEvent('Form reset - custom input cleared');
+            }
+
+            formStateRestoreCallback(state) {
+                this.input.value = state;
+                this.logEvent(`Form state restored: ${state}`);
+            }
+
+            logEvent(message) {
+                const output = document.getElementById('face-output');
+                const time = new Date().toLocaleTimeString();
+                output.textContent += `[${time}] ${message}\n`;
+            }
+        }
+
+        if (!customElements.get('custom-input')) {
+            customElements.define('custom-input', CustomInput);
+        }
+
+        // Form event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('face-demo-form');
+            const output = document.getElementById('face-output');
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                const time = new Date().toLocaleTimeString();
+                output.textContent += `\n[${time}] ✅ Form submitted with data:\n`;
+                for (let [key, value] of formData.entries()) {
+                    output.textContent += `  ${key}: ${value}\n`;
+                }
+            });
+
+            form.addEventListener('reset', () => {
+                const time = new Date().toLocaleTimeString();
+                output.textContent += `\n[${time}] 🔄 Form reset triggered\n`;
+            });
+
+            // Log initial state
+            output.textContent = 'Form initialized. Try filling out the fields and submitting!\n';
+        });
+
+        // Smooth scrolling for navigation
+        document.querySelectorAll('nav a').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
