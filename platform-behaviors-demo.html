@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platform-Provided Behaviors for Custom Elements</title>
+<style>
+  :root {
+    --accent: #2d8ab0;
+    --accent-light: #4aadcf;
+    --bg: #000000;
+    --surface: #111111;
+    --surface-2: #1e1e1e;
+    --text: #bebbbb;
+    --text-muted: #bebbbb;
+    --green: #6fa895;
+    --red: #a8708a;
+    --orange: #c9a062;
+    --purple: #a8708a;
+    --gradient: linear-gradient(135deg, #2d8ab0 0%, #a8708a 100%);
+  }
+
+  body.light {
+    --bg: #e8ebe4;
+    --surface: #dce0d8;
+    --surface-2: #c8cdc3;
+    --text: #000000;
+    --text-muted: #5e302b;
+    --accent: #50808e;
+    --accent-light: #3a6a77;
+    --green: #3a6a77;
+    --red: #5e302b;
+    --orange: #5e302b;
+    --purple: #a8607a;
+    --gradient: linear-gradient(135deg, #3a6a77 0%, #a8607a 100%);
+  }
+  body.light .code-block .keyword { color: #5e302b; }
+  body.light .code-block .string { color: #3a6a77; }
+  body.light .code-block .comment { color: #6e6e6e; }
+  body.light .code-block .func { color: #a8607a; }
+  body.light .code-block .prop { color: #3a6a77; }
+  body.light .code-block .type { color: #5e302b; }
+  body.light h2, body.light h3 { color: #000000; }
+  body.light h1 {
+    background: linear-gradient(135deg, #3a6a77 0%, #a8607a 100%);
+    -webkit-background-clip: text; background-clip: text;
+  }
+  body.light .timeline-dot.current { background: #a8607a; box-shadow: 0 0 10px #a8607a; }
+  body.light .timeline-dot.future { background: #c8cdc3; border-color: #5e302b; }
+  body.light strong { color: #000000; }
+
+  /* Theme toggle */
+  .theme-toggle {
+    position: fixed; top: 16px; right: 20px; z-index: 200;
+    background: var(--surface); border: 1px solid var(--surface-2);
+    border-radius: 20px; padding: 6px 14px;
+    cursor: pointer; font-size: 14px;
+    color: var(--text-muted); display: flex; align-items: center; gap: 6px;
+    transition: background 0.3s, border-color 0.3s, color 0.3s;
+  }
+  .theme-toggle:hover { border-color: var(--accent-light); color: var(--text); }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .deck { position: relative; width: 100%; height: 100%; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 30px 50px;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+  }
+
+  .slide.active { opacity: 1; transform: translateX(0); pointer-events: all; }
+  .slide.prev { opacity: 0; transform: translateX(-60px); }
+
+  .progress {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: var(--gradient); transition: width 0.4s ease; z-index: 100;
+  }
+
+
+  .nav-hint {
+    position: fixed; bottom: 20px; left: 30px; right: 30px;
+    font-size: 12px; color: var(--text-muted); opacity: 0.6; z-index: 100;
+    display: flex; justify-content: space-between; pointer-events: none;
+  }
+  .nav-hint span { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-hint .nav-prev::before { content: '← '; }
+  .nav-hint .nav-next::after { content: ' →'; }
+
+  h1 {
+    font-size: 3.6rem; font-weight: 700; line-height: 1.2; margin-bottom: 20px;
+    background: var(--gradient); -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; background-clip: text;
+  }
+
+  h2 { font-size: 2.8rem; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+  h3 { font-size: 1.6rem; font-weight: 500; color: var(--accent-light); margin-bottom: 12px; }
+  p, li { font-size: 1.35rem; line-height: 1.7; color: var(--text-muted); }
+  .subtitle { font-size: 1.6rem; color: var(--text-muted); margin-bottom: 30px; }
+
+  ul { list-style: none; text-align: left; max-width: 900px; }
+  ul li { padding: 8px 0; padding-left: 24px; position: relative; }
+  ul li::before { content: '\2192'; position: absolute; left: 0; color: var(--accent-light); }
+
+  .code-block {
+    background: var(--surface); border: 1px solid var(--surface-2);
+    border-radius: 12px; padding: 24px 28px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-variant-ligatures: none;
+    font-size: 0.85rem; line-height: 1.7; text-align: left;
+    overflow-x: auto; max-width: 100%; white-space: pre;
+  }
+  .code-block .keyword { color: #a8708a; }
+  .code-block .string { color: #4aadcf; }
+  .code-block .comment { color: #666666; font-style: italic; }
+  .code-block .func { color: #c9a062; }
+  .code-block .prop { color: #4aadcf; }
+  .code-block .type { color: #6fa895; }
+
+  .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; max-width: 1400px; }
+  .comparison-col { display: flex; flex-direction: column; }
+  .comparison-col h3 { text-align: center; margin-bottom: 10px; }
+
+  .badge {
+    display: inline-block; padding: 4px 12px; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge-red { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-purple { background: rgba(163,113,247,0.15); color: var(--purple); }
+  .badge-orange { background: rgba(210,153,34,0.15); color: var(--orange); }
+
+  .timeline { display: flex; flex-direction: column; gap: 16px; max-width: 800px; text-align: left; }
+  .timeline-item { display: flex; align-items: flex-start; gap: 16px; }
+  .timeline-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); margin-top: 6px; flex-shrink: 0; }
+  .timeline-dot.done { background: var(--green); }
+  .timeline-dot.current { background: var(--orange); box-shadow: 0 0 10px var(--orange); }
+  .timeline-dot.future { background: var(--surface-2); border: 2px solid var(--text-muted); }
+  .timeline-content p { font-size: 1.15rem; }
+  .timeline-content .label { font-size: 0.95rem; color: var(--text-muted); }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1000px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--surface-2);
+    border-radius: 12px; padding: 24px; text-align: center;
+  }
+  .stat-card .number {
+    font-size: 2.5rem; font-weight: 700;
+    background: var(--gradient); -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .stat-card .label { font-size: 0.9rem; color: var(--text-muted); margin-top: 8px; }
+
+  .feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; max-width: 1000px; }
+  .feature-card {
+    background: var(--surface); border: 1px solid var(--surface-2);
+    border-radius: 12px; padding: 20px 24px; text-align: left;
+  }
+  .feature-card h4 { font-size: 1rem; color: var(--accent-light); margin-bottom: 6px; }
+  .feature-card p { font-size: 0.9rem; color: var(--text-muted); }
+
+  .quote { border-left: 3px solid var(--accent); padding-left: 20px; margin: 20px 0; max-width: 800px; }
+  .quote p { font-style: italic; font-size: 1.2rem; color: var(--text); }
+  .quote .attribution { font-size: 1rem; color: var(--text-muted); margin-top: 8px; font-style: normal; }
+
+  .slide-title { text-align: center; }
+  .logo-mark { font-size: 4rem; margin-bottom: 20px; }
+  .tag-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+
+  table { border-collapse: collapse; width: 100%; max-width: 800px; margin-top: 16px; }
+  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--surface-2); font-size: 0.95rem; }
+  th { color: var(--accent-light); font-weight: 600; }
+  td { color: var(--text-muted); }
+
+  a { color: var(--accent-light); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { background: var(--surface-2); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
+  strong { color: var(--text); }
+
+  /* === HTML-in-Canvas: title slide rendered through canvas === */
+  .hic-canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    z-index: 0;
+  }
+  .hic-source {
+    /* Content children of the canvas — laid out but only visible via drawElementImage */
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 60px 80px; text-align: center;
+  }
+
+  /* When canvas API isn't available, show content directly */
+  .hic-fallback .hic-source {
+    position: relative; z-index: 1;
+  }
+  .hic-fallback .hic-canvas {
+    display: none;
+  }
+
+  /* Code slide zoom hint */
+  .zoom-hint {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    font-size: 0.75rem; color: var(--text-muted); opacity: 0.6;
+    pointer-events: none; z-index: 10;
+  }
+
+  /* Code slide: override .hic-source to show all content from top */
+  #code-content {
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: left !important;
+    height: 100%;
+    padding: 30px 40px !important;
+    overflow: visible;
+  }
+
+  /* Impact slide animations */
+  .impact-item {
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .impact-right .impact-item {
+    transform: translateX(20px);
+  }
+  #impact-slide.active .impact-item {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  #impact-slide.active .impact-left .impact-item:nth-child(1) { transition-delay: 0.3s; }
+  #impact-slide.active .impact-left .impact-item:nth-child(2) { transition-delay: 0.5s; }
+  #impact-slide.active .impact-left .impact-item:nth-child(3) { transition-delay: 0.7s; }
+  #impact-slide.active .impact-left .impact-item:nth-child(4) { transition-delay: 0.9s; }
+  #impact-slide.active .impact-left .impact-item:nth-child(5) { transition-delay: 1.1s; }
+  #impact-slide.active .impact-left .impact-item:nth-child(6) { transition-delay: 1.3s; }
+  #impact-slide.active .impact-right .impact-item:nth-child(1) { transition-delay: 1.7s; }
+  #impact-slide.active .impact-right .impact-item:nth-child(2) { transition-delay: 1.9s; }
+  #impact-slide.active .impact-right .impact-item:nth-child(3) { transition-delay: 2.1s; }
+  #impact-slide.active .impact-right .impact-item:nth-child(4) { transition-delay: 2.3s; }
+  #impact-slide.active .impact-right .impact-item:nth-child(5) { transition-delay: 2.5s; }
+  #impact-slide.active .impact-right .impact-item:nth-child(6) { transition-delay: 2.7s; }
+  #impact-slide.active .impact-right .impact-item:nth-child(7) { transition-delay: 2.9s; }
+  #impact-slide.active .impact-punchline {
+    animation: punchIn 0.6s ease forwards;
+    animation-delay: 3.2s;
+  }
+  #impact-slide.active .impact-footnote {
+    animation: fadeIn 0.5s ease forwards;
+    animation-delay: 3.8s;
+  }
+  @keyframes punchIn {
+    0% { opacity: 0; transform: scale(0.9); }
+    60% { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 8px var(--accent); }
+    50% { box-shadow: 0 0 20px var(--accent), 0 0 30px var(--accent); }
+  }
+  @keyframes pulseOrange {
+    0%, 100% { box-shadow: 0 0 8px var(--orange); }
+    50% { box-shadow: 0 0 20px var(--orange), 0 0 30px var(--orange); }
+  }
+  @keyframes deadSpin {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-10deg) scale(1.1); }
+    50% { transform: rotate(10deg) scale(0.9); }
+    75% { transform: rotate(-5deg) scale(1.05); }
+  }
+
+  /* Split-flap number animation */
+  .split-flap {
+    font-variant-numeric: tabular-nums;
+    display: inline-block;
+    min-width: 2ch;
+  }
+
+  /* Problem slide animations */
+  .problem-anim {
+    opacity: 0;
+    transform: translateY(15px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  #problem-slide.active .problem-anim {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  #problem-slide.active h2.problem-anim { transition-delay: 0.2s; }
+  #problem-slide.active p.problem-anim { transition-delay: 0.5s; }
+  #problem-slide.active li.problem-anim:nth-child(1) { transition-delay: 0.9s; }
+  #problem-slide.active li.problem-anim:nth-child(2) { transition-delay: 1.2s; }
+  #problem-slide.active li.problem-anim:nth-child(3) { transition-delay: 1.5s; }
+  #problem-slide.active li.problem-anim:nth-child(4) { transition-delay: 1.8s; }
+  #problem-slide.active .problem-punchline {
+    animation: punchIn 0.6s ease forwards;
+    animation-delay: 2.3s;
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode">&#127763; Dark</button>
+<div class="progress" id="progress"></div>
+<div class="nav-hint" id="nav-hint"><span class="nav-prev" id="nav-prev"></span><span class="nav-next" id="nav-next"></span></div>
+
+<div class="deck" id="deck">
+
+  <!-- ========== SLIDE 1: Title (rendered through HTML-in-Canvas with glow + wave) ========== -->
+  <div class="slide slide-title active" data-slide="0" id="title-slide">
+    <canvas class="hic-canvas" id="title-canvas" layoutsubtree>
+      <div class="hic-source" id="title-content">
+        <h1>Platform-Provided Behaviors<br>for Custom Elements</h1>
+        <p class="subtitle">Closing the gap between native elements and web components</p>
+        <div class="tag-row">
+          <span class="badge badge-purple">WHATWG</span>
+          <span class="badge badge-green">CHROMIUM</span>
+          <span class="badge badge-orange">DEVELOPER FEEDBACK</span>
+        </div>
+        <p style="margin-top: 30px; font-size: 0.9rem; color: var(--text-muted);">
+          <span style="font-size: 1.1rem;">Ana Sollano Kim &middot; Microsoft Edge &middot; May 2026</span>
+        </p>
+      </div>
+    </canvas>
+  </div>
+
+  <!-- ========== SLIDE 2: The Problem ========== -->
+  <div class="slide" data-slide="1" id="problem-slide">
+    <h2 class="problem-anim">The problem</h2>
+    <p class="subtitle problem-anim" style="max-width: 700px; text-align: center;">
+      Custom elements can't access native behaviors built into HTML elements.
+    </p>
+    <ul>
+      <li class="problem-anim">No way to trigger <strong>implicit form submission</strong> ("Enter to submit")</li>
+      <li class="problem-anim">No native <strong>popover invocation</strong> from custom elements</li>
+      <li class="problem-anim">No <strong>label association</strong> or focus delegation</li>
+      <li class="problem-anim">No <strong>radio button grouping</strong> or mutual exclusion</li>
+    </ul>
+    <p class="problem-punchline" style="max-width: 700px; text-align: center; margin-top: 24px; font-size: 1.6rem; font-weight: 700; color: var(--red); opacity: 0; transform: scale(0.9);">
+      Developers are forced into workarounds that are fragile, incomplete, and inaccessible.
+    </p>
+  </div>
+
+  <!-- ========== SLIDE 3: Code comparison (HTML-in-Canvas with zoom loupe on hover) ========== -->
+  <div class="slide" data-slide="2" id="code-slide">
+    <canvas class="hic-canvas" id="code-canvas" layoutsubtree>
+      <div class="hic-source" id="code-content">
+        <h2 style="font-size: 1.8rem; font-weight: 600; margin-bottom: 12px; color: var(--text); text-align: center;">Form submission: today vs. with behaviors</h2>
+        <div class="comparison">
+          <div class="comparison-col">
+            <h3><span class="badge badge-red">Today &#8212; ~50 lines</span></h3>
+            <div class="code-block" style="font-size: 0.62rem; line-height: 1.45;"><span class="keyword">class</span> <span class="type">MySubmitButton</span> <span class="keyword">extends</span> <span class="type">HTMLElement</span> {
+  <span class="keyword">static</span> formAssociated = <span class="keyword">true</span>;
+
+  <span class="func">constructor</span>() {
+    <span class="keyword">super</span>();
+    <span class="keyword">this</span>._internals = <span class="keyword">this</span>.attachInternals();
+    <span class="keyword">this</span>.attachShadow({ mode: <span class="string">'open'</span> });
+    <span class="keyword">this</span>.shadowRoot.innerHTML = <span class="string">`&lt;slot&gt;&lt;/slot&gt;`</span>;
+
+    <span class="comment">// Manual click handling</span>
+    <span class="keyword">this</span>.addEventListener(<span class="string">'click'</span>, () =&gt; {
+      <span class="keyword">if</span> (<span class="keyword">this</span>._internals.form)
+        <span class="keyword">this</span>._internals.form.requestSubmit(<span class="keyword">this</span>);
+    });
+
+    <span class="comment">// Manual keyboard activation</span>
+    <span class="keyword">this</span>.addEventListener(<span class="string">'keydown'</span>, (e) =&gt; {
+      <span class="keyword">if</span> (e.key === <span class="string">' '</span> || e.key === <span class="string">'Enter'</span>) {
+        e.preventDefault();
+        <span class="keyword">this</span>.click();
+      }
+    });
+  }
+
+  <span class="comment">// Manual focusability</span>
+  <span class="func">connectedCallback</span>() {
+    <span class="keyword">if</span> (!<span class="keyword">this</span>.hasAttribute(<span class="string">'tabindex'</span>))
+      <span class="keyword">this</span>.setAttribute(<span class="string">'tabindex'</span>, <span class="string">'0'</span>);
+    <span class="keyword">this</span>._internals.role = <span class="string">'button'</span>;
+  }
+}</div>
+          </div>
+          <div class="comparison-col">
+            <h3><span class="badge badge-green">With Behaviors &#8212; 10 lines</span></h3>
+            <div class="code-block" style="font-size: 0.62rem; line-height: 1.45;"><span class="keyword">class</span> <span class="type">MySubmitButton</span> <span class="keyword">extends</span> <span class="type">HTMLElement</span> {
+  <span class="keyword">static</span> formAssociated = <span class="keyword">true</span>;
+
+  <span class="func">constructor</span>() {
+    <span class="keyword">super</span>();
+    <span class="keyword">this</span>._submit = <span class="keyword">new</span> <span class="type">HTMLSubmitButtonBehavior</span>();
+    <span class="keyword">this</span>._internals = <span class="keyword">this</span>.attachInternals({
+      behaviors: [<span class="keyword">this</span>._submit]
+    });
+    <span class="keyword">this</span>.attachShadow({ mode: <span class="string">'open'</span> });
+    <span class="keyword">this</span>.shadowRoot.innerHTML = <span class="string">`&lt;slot&gt;&lt;/slot&gt;`</span>;
+  }
+}</div>
+          </div>
+        </div>
+      </div>
+    </canvas>
+    <span class="zoom-hint">&#128269; Hover over code to magnify</span>
+  </div>
+
+  <!-- ========== SLIDE 4: Impact (animated) ========== -->
+  <div class="slide" data-slide="3" id="impact-slide">
+    <h2 style="font-size: 2rem; font-weight: 600; margin-bottom: 40px;">What you lose vs. what you get</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; max-width: 900px; width: 100%;">
+      <div>
+        <h3 style="color: #f85149; margin-bottom: 20px; font-size: 1.2rem;">&#10060; Today&#8217;s custom elements</h3>
+        <ul class="impact-list impact-left" style="list-style: none; padding: 0; font-size: 1rem; line-height: 2.2; color: var(--text);">
+          <li class="impact-item">Can&#8217;t do implicit submission</li>
+          <li class="impact-item">Can&#8217;t participate in <code>:default</code></li>
+          <li class="impact-item">No <code>formAction</code>, <code>formMethod</code>, <code>formEnctype</code>, <code>formNoValidate</code>, <code>formTarget</code></li>
+          <li class="impact-item">Must sprout <code>tabindex</code> for focusability</li>
+          <li class="impact-item">Must manually implement keyboard activation</li>
+          <li class="impact-item">No <code>name</code>/<code>value</code> in FormData as submitter</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="color: #3fb950; margin-bottom: 20px; font-size: 1.2rem;">&#9989; With behaviors</h3>
+        <ul class="impact-list impact-right" style="list-style: none; padding: 0; font-size: 1rem; line-height: 2.2; color: var(--text);">
+          <li class="impact-item">Implicit form submission</li>
+          <li class="impact-item">Keyboard activation (Space/Enter)</li>
+          <li class="impact-item">Implicit <code>role="button"</code></li>
+          <li class="impact-item">Automatic tab order participation</li>
+          <li class="impact-item"><code>:default</code> pseudo-class matching</li>
+          <li class="impact-item"><code>formAction</code>, <code>formMethod</code>, <code>formEnctype</code>, <code>formNoValidate</code>, <code>formTarget</code></li>
+          <li class="impact-item"><code>name</code>/<code>value</code> in FormData as submitter</li>
+        </ul>
+      </div>
+    </div>
+    <p class="impact-punchline" style="font-size: 1.6rem; color: var(--green); margin-top: 40px; font-weight: 700; opacity: 0; transform: scale(0.9);">
+      ~80% less code, and it does <em>more</em>.
+    </p>
+    <p class="impact-footnote" style="font-size: 1rem; color: var(--text-muted); margin-top: 12px; opacity: 0;">
+      Implicit submission <strong style="color: var(--text);">cannot be easily polyfilled</strong> today.
+    </p>
+  </div>
+
+  <!-- ========== SLIDE 5: Live Demo ========== -->
+  <div class="slide" data-slide="4" id="demo-slide" style="align-items: center;">
+    <h2 style="margin-bottom: 32px;">A real custom element with HTMLSubmitButtonBehavior</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; max-width: 1300px; width: 100%; align-items: start;">
+      <!-- Col 1: code with magnifier -->
+      <div style="position: relative;">
+        <h3 style="margin-bottom: 10px; font-size: 1rem;">Definition</h3>
+        <canvas class="hic-canvas" id="demo-code-canvas" layoutsubtree style="position: relative; width: 100%; height: 360px;">
+          <div class="hic-source" id="demo-code-content" style="justify-content: flex-start; align-items: stretch; text-align: left; padding: 0; height: 100%;">
+            <div class="code-block" style="font-size: 0.6rem; line-height: 1.4; padding: 16px 18px;"><span class="keyword">class</span> <span class="type">MySubmitBtn</span> <span class="keyword">extends</span> <span class="type">HTMLElement</span> {
+  <span class="keyword">static</span> formAssociated = <span class="keyword">true</span>;
+  <span class="func">constructor</span>() {
+    <span class="keyword">super</span>();
+    <span class="keyword">this</span>._submit = <span class="keyword">new</span> <span class="type">HTMLSubmitButtonBehavior</span>();
+    <span class="keyword">this</span>._internals = <span class="keyword">this</span>.attachInternals({
+      behaviors: [<span class="keyword">this</span>._submit]
+    });
+  }
+}
+customElements.define(<span class="string">'my-submit-btn'</span>, <span class="type">MySubmitBtn</span>);</div>
+          </div>
+        </canvas>
+        <span class="zoom-hint" style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%);">&#128269; Hover to magnify</span>
+      </div>
+      <!-- Col 2: form -->
+      <div>
+        <h3 style="margin-bottom: 10px; font-size: 1rem;">Interactive form</h3>
+        <form id="demo-form" style="background: var(--surface); border: 1px solid var(--surface-2); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--text);">
+            Name
+            <input type="text" name="username" value="Ana" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--surface-2); background: var(--bg); color: var(--text); font-size: 0.95rem; outline: none;" />
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--text);">
+            Email
+            <input type="email" name="email" value="contoso@microsoft.com" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--surface-2); background: var(--bg); color: var(--text); font-size: 0.95rem; outline: none;" />
+          </label>
+          <div style="display: flex; gap: 10px; margin-top: 6px;">
+            <my-submit-btn name="action" value="save" style="padding: 8px 20px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 0.95rem; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px;">💾 Save</my-submit-btn>
+            <my-submit-btn name="action" value="draft" formaction="/drafts" style="padding: 8px 20px; border-radius: 8px; background: var(--surface-2); color: var(--text); font-size: 0.95rem; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px;">📝 Save draft</my-submit-btn>
+          </div>
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Click a button, <em>or</em> press Enter for implicit submission.</p>
+        </form>
+      </div>
+      <!-- Col 3: output -->
+      <div>
+        <h3 style="margin-bottom: 10px; font-size: 1rem;">Submission result</h3>
+        <div id="demo-output" style="background: var(--surface); border: 1px solid var(--surface-2); border-radius: 12px; padding: 20px; min-height: 280px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.85rem; line-height: 1.8; color: var(--text-muted);">
+          <span style="opacity: 0.5;">Submit the form to see results here…</span>
+        </div>
+        <div id="demo-error" style="margin-top: 12px; font-size: 0.85rem; color: var(--red); display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SLIDE 5: API Design ========== -->
+  <div class="slide" data-slide="5">
+    <h2>API design principles</h2>
+    <ul>
+      <li><strong>Composable</strong> &#8212; Multiple behaviors can coexist on one element</li>
+      <li><strong>Explicit</strong> &#8212; Behaviors are real objects with typed properties</li>
+      <li><strong>Immutable after attachment</strong> &#8212; No <code>&lt;input type&gt;</code> switching problems</li>
+      <li><strong>Accessible by default</strong> &#8212; Implicit roles and focusability out of the box</li>
+      <li><strong>Polyfillable</strong> &#8212; Even easier with developer-defined behaviors&#8230;</li>
+    </ul>
+    <div class="code-block" style="margin-top: 24px; font-size: 0.82rem;">
+<span class="comment">// Feature detection and graceful fallback</span>
+<span class="keyword">if</span> (<span class="keyword">typeof</span> <span class="type">HTMLSubmitButtonBehavior</span> !== <span class="string">'undefined'</span>) {
+  <span class="keyword">this</span>._submit = <span class="keyword">new</span> <span class="type">HTMLSubmitButtonBehavior</span>();
+  <span class="keyword">this</span>._internals = <span class="keyword">this</span>.attachInternals({ behaviors: [<span class="keyword">this</span>._submit] });
+} <span class="keyword">else</span> {
+  <span class="keyword">this</span>._internals = <span class="keyword">this</span>.attachInternals();
+  <span class="keyword">this</span>.addEventListener(<span class="string">'click'</span>, () =&gt; <span class="keyword">this</span>._internals.form?.requestSubmit(<span class="keyword">this</span>));
+}</div>
+  </div>
+
+  <!-- ========== SLIDE 6: Journey ========== -->
+  <div class="slide" data-slide="6" style="align-items: center; justify-content: center;">
+    <h2>The journey</h2>
+    <p class="subtitle" style="margin-bottom: 40px;">From ElementInternals.type to platform-provided behaviors</p>
+    <div style="position: relative; max-width: 1100px; width: 100%; padding: 0 20px;">
+      <!-- Horizontal line -->
+      <div style="position: absolute; top: 18px; left: 40px; right: 40px; height: 3px; background: linear-gradient(to right, #f85149 0%, #f85149 12%, var(--text-muted) 16%, var(--green) 22%, var(--green) 72%, var(--accent) 100%); border-radius: 2px;"></div>
+      <!-- Timeline items -->
+      <div style="display: flex; justify-content: space-between; position: relative;">
+        <!-- 1: EI.type -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 14%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: #f85149; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1; animation: deadSpin 2.5s ease-in-out infinite;">&#x1F480;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600; text-decoration: line-through; opacity: 0.6;">EI.type</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Proposal rejected</p>
+        </div>
+        <!-- 2: Listening -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 14%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1;">&#x1F442;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600;">Listening</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">1P &amp; 3P WC authors</p>
+        </div>
+        <!-- 3: Redesign -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 14%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--green); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1;">&#x1F4A1;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600;">Redesign</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Composable behaviors</p>
+        </div>
+        <!-- 4: Explainer -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 14%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--green); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1;">&#x1F4DD;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600;">Explainer</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">New API surface</p>
+        </div>
+        <!-- 5: Stage 1 -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 14%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--green); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1;">&#9989;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600;">Stage 1</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">WHATWG #12150</p>
+        </div>
+        <!-- 6: Implementation -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 14%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--green); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1;">&#x1F6E0;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600;">Implementation</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Code complete</p>
+        </div>
+        <!-- 7: Stage 2 -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 14%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1; animation: pulse 2s infinite;">&#x1F680;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600; color: var(--accent);">Stage 2</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Spec PR seeking feedback</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SLIDE 7: Community Feedback ========== -->
+  <div class="slide" data-slide="7">
+    <h2>Community reception</h2>
+    <p class="subtitle">WHATWG HTML Issue #12150 &amp; <a href="https://discord.com/channels/767813449048260658/1469396109800509764" style="color: var(--accent);">Web Components Community Group</a></p>
+    <div style="columns: 3; column-gap: 16px; max-width: 1200px; width: 100%; margin-top: 20px;">
+      <div class="quote" style="break-inside: avoid; margin-bottom: 14px; padding: 18px 20px;">
+        <p style="font-size: 0.95rem;">"This looks like a really nice refinement on the original proposal. Moving toward a shape of 'attaching objects as behaviours' feels like there is a lot more scope for design."</p>
+        <p class="attribution">&#8212; Keith Cirkel (Mozilla, WHATWG)</p>
+      </div>
+      <div class="quote" style="break-inside: avoid; margin-bottom: 14px; padding: 14px 18px;">
+        <p style="font-size: 0.85rem;">"The explainer looks very interesting."</p>
+        <p class="attribution" style="font-size: 0.8rem;">&#8212; Jeroen (WCCG)</p>
+      </div>
+      <div class="quote" style="break-inside: avoid; margin-bottom: 14px; padding: 18px 20px;">
+        <p style="font-size: 0.95rem;">"I think the explainer is really well written. I like that it goes through all of the alternatives considered, with good pros and cons. I do think this sounds like the best path forward."</p>
+        <p class="attribution">&#8212; Mason Freed (Google)</p>
+      </div>
+      <div class="quote" style="break-inside: avoid; margin-bottom: 14px; padding: 18px 20px;">
+        <p style="font-size: 0.95rem;">"This is an important problem to solve, and something that severely cripples custom elements today."</p>
+        <p class="attribution">&#8212; Lea Verou (W3C TAG, WHATWG)</p>
+      </div>
+      <div class="quote" style="break-inside: avoid; margin-bottom: 14px; padding: 18px 20px;">
+        <p style="font-size: 0.95rem;">"I like the general direction of exposing this via a configurable list of helper objects on element internals."</p>
+        <p class="attribution">&#8212; Steve Orvell (Google)</p>
+      </div>
+      <div class="quote" style="break-inside: avoid; margin-bottom: 14px; padding: 14px 18px;">
+        <p style="font-size: 0.85rem;">"I've seen #12150, and I think it would solve my problem."</p>
+        <p class="attribution" style="font-size: 0.8rem;">&#8212; nicksloan (Studioworks)</p>
+      </div>
+      <div class="quote" style="break-inside: avoid; margin-bottom: 14px; padding: 18px 20px;">
+        <p style="font-size: 0.95rem;">"This is great to see!"</p>
+        <p class="attribution">&#8212; Justin Fagnani (Lit)</p>
+      </div>
+      <div class="quote" style="break-inside: avoid; margin-bottom: 14px; padding: 18px 20px;">
+        <p style="font-size: 0.9rem;">"I like the general idea of the proposal. I'm a big fan of the kind of extensible, composition-based approach that mixins take. Starting with HTMLSubmitButtonMixin is a good choice since this is a common task that often catches developers off guard."</p>
+        <p class="attribution">&#8212; Rob Eisenberg (Bluespire)</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SLIDE 8: Implementation Status ========== -->
+  <div class="slide" data-slide="8" id="impl-slide" style="align-items: center; position: relative; overflow: hidden;">
+    <canvas id="confetti-canvas" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;"></canvas>
+    <h2>Implementation in Chromium</h2>
+    <p style="font-size: 1.1rem; color: var(--green); font-weight: 600; margin-bottom: 8px;">&#127881; Code complete</p>
+    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 30px;">Flag: <code style="background: var(--surface); padding: 2px 8px; border-radius: 4px;">chrome://flags/#element-internals-behaviors</code></p>
+    <div class="stats">
+      <div class="stat-card">
+        <div class="number split-flap" data-target="7">0</div>
+        <div class="label">CLs landed</div>
+      </div>
+      <div class="stat-card">
+        <div class="number split-flap" data-target="67">0</div>
+        <div class="label">Test cases</div>
+      </div>
+      <div class="stat-card">
+        <div class="number split-flap" data-target="5">0</div>
+        <div class="label">WPT test files</div>
+      </div>
+    </div>
+    <table style="margin-top: 30px;">
+      <tr><th>Component</th><th>Status</th></tr>
+      <tr><td>ElementBehavior base class</td><td><span class="badge badge-green">&#10003; Landed</span></td></tr>
+      <tr><td>HTMLSubmitButtonBehavior</td><td><span class="badge badge-green">&#10003; Landed</span></td></tr>
+      <tr><td>Form submission integration</td><td><span class="badge badge-green">&#10003; Landed</span></td></tr>
+      <tr><td>Accessibility (role, focus, keyboard)</td><td><span class="badge badge-green">&#10003; Landed</span></td></tr>
+      <tr><td>setFormValue / activated-submit pattern</td><td><span class="badge badge-green">&#10003; Landed</span></td></tr>
+      <tr><td>UseCounter metrics</td><td><span class="badge badge-green">&#10003; Landed</span></td></tr>
+    </table>
+  </div>
+
+  <!-- ========== SLIDE 9: What's Next ========== -->
+  <div class="slide" data-slide="9" style="align-items: center; justify-content: center;">
+    <h2>What's next</h2>
+    <p class="subtitle" style="margin-bottom: 40px;">The road ahead for platform-provided behaviors</p>
+    <div style="position: relative; max-width: 1100px; width: 100%; padding: 0 20px;">
+      <!-- Horizontal line -->
+      <div style="position: absolute; top: 18px; left: 40px; right: 40px; height: 3px; background: linear-gradient(to right, var(--orange) 0%, var(--orange) 30%, var(--surface-2) 35%, var(--surface-2) 100%); border-radius: 2px;"></div>
+      <!-- Timeline items -->
+      <div style="display: flex; justify-content: space-between; position: relative;">
+        <!-- 1: Stage 2 -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 16%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 12px var(--orange); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1; animation: pulseOrange 2s infinite;">&#x1F3AF;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600; color: var(--orange);">Stage 2</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">WHATWG consensus</p>
+        </div>
+        <!-- 2: Dev Trials -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 16%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 12px var(--orange); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1; animation: pulseOrange 2s infinite;">&#x1F9EA;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600; color: var(--orange);">Dev trials</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Real-world feedback</p>
+        </div>
+        <!-- 3: Ship + Stage 3/4 -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 16%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1;">&#x1F4E6;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600;">Ship</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;"><a href="https://whatwg.org/stages" style="color: var(--accent);">Stage 3 &amp; 4</a></p>
+        </div>
+        <!-- 4: HTMLButtonBehavior -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 16%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1;">&#x1F518;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600;">HTMLButtonBehavior</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Generic buttons</p>
+        </div>
+        <!-- 5: HTMLResetButtonBehavior -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 16%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1;">&#x1F504;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600;">HTMLResetButtonBehavior</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Form reset</p>
+        </div>
+        <!-- 6: Developer-defined -->
+        <div style="display: flex; flex-direction: column; align-items: center; width: 16%; text-align: center;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; position: relative; z-index: 1;">&#x2728;</div>
+          <p style="margin-top: 14px; font-size: 0.95rem; font-weight: 600;">Developer-defined</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Custom behaviors</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SLIDE 11: Summary (rendered through HTML-in-Canvas with pixel effect) ========== -->
+  <div class="slide slide-title" data-slide="10" id="summary-slide">
+    <canvas class="hic-canvas" id="summary-canvas" layoutsubtree>
+      <div class="hic-source" id="summary-content">
+        <div class="logo-mark">&#10024;</div>
+        <h1>Bridging the Gap</h1>
+        <p class="subtitle" style="max-width: 600px;">
+          Platform-provided behaviors give custom elements first-class access to native capabilities &#8212; composable, accessible, and future-proof.
+        </p>
+        <div class="stats" style="margin-top: 30px;">
+          <div class="stat-card">
+            <div class="number" style="font-size: 1.6rem;">~80%</div>
+            <div class="label">Less boilerplate</div>
+          </div>
+          <div class="stat-card">
+            <div class="number" style="font-size: 1.6rem;">A11y</div>
+            <div class="label">Built-in by default</div>
+          </div>
+          <div class="stat-card">
+            <div class="number" style="font-size: 1.6rem;">&#8734;</div>
+            <div class="label">Composable future</div>
+          </div>
+        </div>
+        <p style="margin-top: 40px; font-size: 1rem; color: var(--text-muted);">
+          <strong>Links:</strong>
+          <a href="https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/PlatformProvidedBehaviors/explainer.md">Explainer</a> &middot;
+          <a href="https://github.com/whatwg/html/issues/12150">WHATWG Issue</a> &middot;
+          <a href="https://github.com/whatwg/html/pull/12409">Spec PR</a> &middot;
+          <a href="https://chromium-review.googlesource.com/q/hashtag:%22platform-provided-behaviors%22">Chromium CLs</a>
+        </p>
+      </div>
+    </canvas>
+  </div>
+
+  <!-- ========== SLIDE 12: End ========== -->
+  <div class="slide slide-title" data-slide="11">
+    <h1 style="font-size: 5rem; font-weight: 300; letter-spacing: -2px; opacity: 0.85;">fin.</h1>
+  </div>
+
+</div>
+
+<script>
+  // === Slide Navigation ===
+  const slides = document.querySelectorAll('.slide');
+  const progress = document.getElementById('progress');
+  let current = 0;
+
+  function goTo(index) {
+    if (index < 0 || index >= slides.length) return;
+    slides.forEach((s, i) => {
+      s.classList.remove('active', 'prev');
+      if (i < index) s.classList.add('prev');
+    });
+    current = index;
+    slides[current].classList.add('active');
+    slides[current].classList.remove('prev');
+    progress.style.width = ((current / (slides.length - 1)) * 100) + '%';
+
+    // Update nav hints with prev/next slide titles
+    const getTitle = (i) => {
+      if (i < 0 || i >= slides.length) return '';
+      const h = slides[i].querySelector('h1, h2');
+      return h ? h.textContent.trim() : '';
+    };
+    const prevEl = document.getElementById('nav-prev');
+    const nextEl = document.getElementById('nav-next');
+    prevEl.textContent = current > 0 ? getTitle(current - 1) : '';
+    prevEl.style.visibility = current > 0 ? 'visible' : 'hidden';
+    nextEl.textContent = current < slides.length - 1 ? getTitle(current + 1) : '';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    else if (e.key === 'End') { e.preventDefault(); goTo(slides.length - 1); }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('a')) return;
+    if (e.clientX > window.innerWidth / 2) goTo(current + 1);
+    else goTo(current - 1);
+  });
+
+  goTo(0);
+
+  // === Live Demo: Custom Element with HTMLSubmitButtonBehavior ===
+  (function initDemo() {
+    const errorEl = document.getElementById('demo-error');
+    try {
+      if (typeof HTMLSubmitButtonBehavior === 'undefined') {
+        throw new Error('HTMLSubmitButtonBehavior is not available. Enable "Experimental Web Platform features" in chrome://flags.');
+      }
+
+      class MySubmitBtn extends HTMLElement {
+        static formAssociated = true;
+
+        constructor() {
+          super();
+          this._submit = new HTMLSubmitButtonBehavior();
+          this._internals = this.attachInternals({
+            behaviors: [this._submit]
+          });
+          this.attachShadow({ mode: 'open' });
+          this.shadowRoot.innerHTML = `<style>:host { display: inline-flex; }</style><slot></slot>`;
+        }
+      }
+      customElements.define('my-submit-btn', MySubmitBtn);
+
+      const form = document.getElementById('demo-form');
+      const output = document.getElementById('demo-output');
+      let submitCount = 0;
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitCount++;
+        const data = new FormData(form);
+        const submitter = e.submitter;
+        let html = `<div style="color: var(--green); font-weight: 600; margin-bottom: 8px;">✅ Submit #${submitCount}</div>`;
+        html += `<div style="margin-bottom: 12px;">`;
+        html += `<span style="color: var(--accent-light);">submitter:</span> &lt;${submitter?.localName || 'none'}&gt;`;
+        if (submitter?.getAttribute('name')) {
+          html += ` <span style="color: var(--text-muted);">(name="${submitter.getAttribute('name')}", value="${submitter.getAttribute('value')}")</span>`;
+        }
+        html += `</div>`;
+        html += `<div style="color: var(--accent-light); margin-bottom: 4px;">FormData entries:</div>`;
+        for (const [key, value] of data.entries()) {
+          html += `<div>&nbsp;&nbsp;<span style="color: var(--text);">${key}</span> = <span style="color: var(--green);">"${value}"</span></div>`;
+        }
+        if (submitter?.formAction && submitter.formAction !== form.action) {
+          html += `<div style="margin-top: 8px; color: var(--accent-light);">formAction override: <span style="color: var(--text);">${submitter.getAttribute('formaction')}</span></div>`;
+        }
+        html += `<div style="margin-top: 8px; color: var(--text-muted); font-size: 0.8rem;">method: ${form.method || 'GET'} &middot; action: ${form.action || '(page)'}</div>`;
+        output.innerHTML = html;
+      });
+
+      // Prevent navigation when interacting with the demo
+      const demoSlide = document.getElementById('demo-slide');
+      demoSlide.addEventListener('click', (e) => { e.stopPropagation(); });
+
+    } catch (err) {
+      if (errorEl) {
+        errorEl.style.display = 'block';
+        errorEl.textContent = '⚠️ ' + err.message;
+      }
+    }
+  })();
+
+  // Theme toggle
+  const toggle = document.getElementById('theme-toggle');
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.body.classList.toggle('light');
+    const isLight = document.body.classList.contains('light');
+    toggle.innerHTML = isLight ? '&#9728;&#65039; Light' : '&#127763; Dark';
+  });
+
+  // === HTML-in-Canvas Effects ===
+  // Uses the real drawElementImage API to render title & summary slides
+  // with glow, wave distortion, and chromatic aberration effects.
+
+  function initHICSlide(canvasId, contentId, effectFn) {
+    const canvas = document.getElementById(canvasId);
+    const content = document.getElementById(contentId);
+    if (!canvas || !content) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !ctx.drawElementImage) {
+      // Fallback: show content normally when API unavailable
+      canvas.closest('.slide').classList.add('hic-fallback');
+      return;
+    }
+
+    // Size canvas to fill the slide
+    const observer = new ResizeObserver(([entry]) => {
+      canvas.width = entry.devicePixelContentBoxSize[0].inlineSize;
+      canvas.height = entry.devicePixelContentBoxSize[0].blockSize;
+      if (canvas.requestPaint) canvas.requestPaint();
+    });
+    observer.observe(canvas, { box: 'device-pixel-content-box' });
+
+    // Paint handler — draw content with effects
+    canvas.addEventListener('paint', () => {
+      ctx.reset();
+      effectFn(ctx, canvas, content);
+    });
+
+    // Continuously repaint when the slide is active
+    function loop() {
+      const slide = canvas.closest('.slide');
+      if (slide && slide.classList.contains('active')) {
+        if (canvas.requestPaint) canvas.requestPaint();
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+  }
+
+  // --- Title slide effect: subtle floating + glow ---
+  initHICSlide('title-canvas', 'title-content', (ctx, canvas, content) => {
+    const t = performance.now() / 1000;
+    const w = canvas.width;
+    const h = canvas.height;
+    const dpr = devicePixelRatio || 1;
+
+    // Subtle floating motion
+    const floatY = Math.sin(t * 0.8) * 4 * dpr;
+    const floatX = Math.cos(t * 0.6) * 2 * dpr;
+
+    // Draw with glow
+    ctx.shadowColor = 'rgba(0, 120, 212, 0.35)';
+    ctx.shadowBlur = 30 * dpr;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    // Draw the content with floating offset
+    const transform = ctx.drawElementImage(content, floatX, floatY);
+    if (transform) content.style.transform = transform.toString();
+
+    // Overlay: draw again with slight offset for chromatic aberration
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.04;
+    ctx.shadowBlur = 0;
+    ctx.drawElementImage(content, floatX + 2 * dpr, floatY);
+    ctx.drawElementImage(content, floatX - 2 * dpr, floatY);
+  });
+
+  // --- Summary slide effect: wave distortion via pixel manipulation ---
+  initHICSlide('summary-canvas', 'summary-content', (ctx, canvas, content) => {
+    const t = performance.now() / 1000;
+    const w = canvas.width;
+    const h = canvas.height;
+    const dpr = devicePixelRatio || 1;
+
+    // First draw content normally
+    const transform = ctx.drawElementImage(content, 0, 0);
+    if (transform) content.style.transform = transform.toString();
+
+    // Apply wave distortion via pixel manipulation
+    try {
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+      const original = new Uint8ClampedArray(data);
+
+      const waveAmplitude = 3 * dpr;
+      const waveFrequency = 0.02 / dpr;
+
+      for (let y = 0; y < h; y++) {
+        // Horizontal wave offset per scanline
+        const offset = Math.round(waveAmplitude * Math.sin(waveFrequency * y + t * 2));
+        for (let x = 0; x < w; x++) {
+          const srcX = Math.min(w - 1, Math.max(0, x + offset));
+          const dstIdx = (y * w + x) * 4;
+          const srcIdx = (y * w + srcX) * 4;
+          data[dstIdx] = original[srcIdx];
+          data[dstIdx + 1] = original[srcIdx + 1];
+          data[dstIdx + 2] = original[srcIdx + 2];
+          data[dstIdx + 3] = original[srcIdx + 3];
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    } catch (e) {
+      // Security or perf issue — skip pixel manipulation
+    }
+
+    // Scanline overlay for retro feel
+    ctx.globalAlpha = 0.03;
+    ctx.fillStyle = '#000';
+    for (let y = 0; y < h; y += 4 * dpr) {
+      ctx.fillRect(0, y, w, 1 * dpr);
+    }
+  });
+  // --- Code slide: magnifying loupe on hover ---
+  (function initCodeZoom() {
+    const canvas = document.getElementById('code-canvas');
+    const content = document.getElementById('code-content');
+    if (!canvas || !content) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !ctx.drawElementImage) {
+      canvas.closest('.slide').classList.add('hic-fallback');
+      return;
+    }
+
+    const ZOOM = 1.8;       // magnification factor
+    const LOUPE_W = 500;    // loupe width in CSS px
+    const LOUPE_H = 160;    // loupe height in CSS px (fits ~6-8 lines)
+    const CORNER_R = 8;     // border radius in CSS px
+    let mouseX = -1000, mouseY = -1000;
+    let isHovering = false;
+
+    // Size canvas
+    const observer = new ResizeObserver(([entry]) => {
+      canvas.width = entry.devicePixelContentBoxSize[0].inlineSize;
+      canvas.height = entry.devicePixelContentBoxSize[0].blockSize;
+      if (canvas.requestPaint) canvas.requestPaint();
+    });
+    observer.observe(canvas, { box: 'device-pixel-content-box' });
+
+    // Track mouse — only show loupe over code blocks
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+      // Check if cursor is over a code block
+      const codeBlocks = content.querySelectorAll('.code-block');
+      let overCode = false;
+      for (const block of codeBlocks) {
+        const br = block.getBoundingClientRect();
+        if (e.clientX >= br.left && e.clientX <= br.right &&
+            e.clientY >= br.top && e.clientY <= br.bottom) {
+          overCode = true;
+          break;
+        }
+      }
+      isHovering = overCode;
+      canvas.style.cursor = overCode ? 'none' : 'default';
+      if (canvas.requestPaint) canvas.requestPaint();
+    });
+    canvas.addEventListener('mouseleave', () => {
+      isHovering = false;
+      canvas.style.cursor = 'default';
+      if (canvas.requestPaint) canvas.requestPaint();
+    });
+
+    // Prevent click navigation on this slide's canvas
+    canvas.addEventListener('click', (e) => { e.stopPropagation(); });
+
+    canvas.addEventListener('paint', () => {
+      const dpr = devicePixelRatio || 1;
+      ctx.reset();
+
+      // Draw content at normal size
+      const transform = ctx.drawElementImage(content, 0, 0);
+      if (transform) content.style.transform = transform.toString();
+
+      // Draw magnifying loupe if hovering
+      if (isHovering) {
+        const cx = mouseX * dpr;
+        const cy = mouseY * dpr;
+        const w = LOUPE_W * dpr;
+        const h = LOUPE_H * dpr;
+        const cr = CORNER_R * dpr;
+        const x = cx - w / 2;
+        const y = cy - h / 2;
+
+        ctx.save();
+
+        // Clip to rounded rectangle
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, cr);
+        ctx.clip();
+
+        // Dark background behind zoomed content
+        ctx.fillStyle = 'rgba(13, 17, 23, 0.95)';
+        ctx.fillRect(x, y, w, h);
+
+        // Draw zoomed content: scale around cursor position
+        ctx.translate(cx, cy);
+        ctx.scale(ZOOM, ZOOM);
+        ctx.translate(-cx, -cy);
+        ctx.drawElementImage(content, 0, 0);
+
+        ctx.restore();
+
+        // Loupe border
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, cr);
+        ctx.strokeStyle = 'rgba(80, 176, 255, 0.6)';
+        ctx.lineWidth = 2 * dpr;
+        ctx.stroke();
+
+        // Subtle outer glow
+        ctx.beginPath();
+        ctx.roundRect(x - 3 * dpr, y - 3 * dpr, w + 6 * dpr, h + 6 * dpr, cr + 3 * dpr);
+        ctx.strokeStyle = 'rgba(0, 120, 212, 0.2)';
+        ctx.lineWidth = 4 * dpr;
+        ctx.stroke();
+      }
+    });
+
+    // Repaint loop when slide is active
+    function loop() {
+      const slide = canvas.closest('.slide');
+      if (slide && slide.classList.contains('active') && isHovering) {
+        if (canvas.requestPaint) canvas.requestPaint();
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+  })();
+
+  // --- Demo slide code: magnifying loupe on hover ---
+  (function initDemoCodeZoom() {
+    const canvas = document.getElementById('demo-code-canvas');
+    const content = document.getElementById('demo-code-content');
+    if (!canvas || !content) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !ctx.drawElementImage) {
+      canvas.closest('div').classList.add('hic-fallback');
+      return;
+    }
+
+    const ZOOM = 1.8;
+    const LOUPE_W = 400;
+    const LOUPE_H = 140;
+    const CORNER_R = 8;
+    let mouseX = -1000, mouseY = -1000;
+    let isHovering = false;
+
+    const observer = new ResizeObserver(([entry]) => {
+      canvas.width = entry.devicePixelContentBoxSize[0].inlineSize;
+      canvas.height = entry.devicePixelContentBoxSize[0].blockSize;
+      if (canvas.requestPaint) canvas.requestPaint();
+    });
+    observer.observe(canvas, { box: 'device-pixel-content-box' });
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+      const codeBlocks = content.querySelectorAll('.code-block');
+      let overCode = false;
+      for (const block of codeBlocks) {
+        const br = block.getBoundingClientRect();
+        if (e.clientX >= br.left && e.clientX <= br.right &&
+            e.clientY >= br.top && e.clientY <= br.bottom) {
+          overCode = true;
+          break;
+        }
+      }
+      isHovering = overCode;
+      canvas.style.cursor = overCode ? 'none' : 'default';
+      if (canvas.requestPaint) canvas.requestPaint();
+    });
+    canvas.addEventListener('mouseleave', () => {
+      isHovering = false;
+      canvas.style.cursor = 'default';
+      if (canvas.requestPaint) canvas.requestPaint();
+    });
+
+    canvas.addEventListener('click', (e) => { e.stopPropagation(); });
+
+    canvas.addEventListener('paint', () => {
+      const dpr = devicePixelRatio || 1;
+      ctx.reset();
+
+      const transform = ctx.drawElementImage(content, 0, 0);
+      if (transform) content.style.transform = transform.toString();
+
+      if (isHovering) {
+        const cx = mouseX * dpr;
+        const cy = mouseY * dpr;
+        const w = LOUPE_W * dpr;
+        const h = LOUPE_H * dpr;
+        const cr = CORNER_R * dpr;
+        const x = cx - w / 2;
+        const y = cy - h / 2;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, cr);
+        ctx.clip();
+        ctx.fillStyle = 'rgba(13, 17, 23, 0.95)';
+        ctx.fillRect(x, y, w, h);
+        ctx.translate(cx, cy);
+        ctx.scale(ZOOM, ZOOM);
+        ctx.translate(-cx, -cy);
+        ctx.drawElementImage(content, 0, 0);
+        ctx.restore();
+
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, cr);
+        ctx.strokeStyle = 'rgba(80, 176, 255, 0.6)';
+        ctx.lineWidth = 2 * dpr;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.roundRect(x - 3 * dpr, y - 3 * dpr, w + 6 * dpr, h + 6 * dpr, cr + 3 * dpr);
+        ctx.strokeStyle = 'rgba(0, 120, 212, 0.2)';
+        ctx.lineWidth = 4 * dpr;
+        ctx.stroke();
+      }
+    });
+
+    function loop() {
+      const slide = canvas.closest('.slide');
+      if (slide && slide.classList.contains('active') && isHovering) {
+        if (canvas.requestPaint) canvas.requestPaint();
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+  })();
+
+  // --- Implementation slide: split-flap counter + confetti ---
+  (function initImplSlide() {
+    const implSlide = document.getElementById('impl-slide');
+    if (!implSlide) return;
+
+    let hasAnimated = false;
+
+    // Split-flap number animation
+    function animateCounters() {
+      const flaps = implSlide.querySelectorAll('.split-flap');
+      flaps.forEach(el => {
+        const target = parseInt(el.dataset.target);
+        const duration = 1500;
+        const steps = 30;
+        const stepTime = duration / steps;
+        let step = 0;
+
+        const interval = setInterval(() => {
+          step++;
+          if (step >= steps) {
+            el.textContent = target;
+            clearInterval(interval);
+          } else {
+            // Show random numbers cycling through, getting closer to target
+            const progress = step / steps;
+            const range = Math.ceil(target * (1 - progress * 0.8));
+            const randomNum = Math.floor(Math.random() * range) + Math.max(0, target - range);
+            el.textContent = Math.min(randomNum, target + Math.floor(Math.random() * 10));
+          }
+        }, stepTime);
+      });
+    }
+
+    // Confetti using canvas
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.offsetWidth * devicePixelRatio;
+      canvas.height = canvas.offsetHeight * devicePixelRatio;
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+
+      const colors = ['#6fa895', '#4aadcf', '#a8708a', '#f85149', '#3fb950', '#ffd700'];
+      const particles = [];
+
+      for (let i = 0; i < 120; i++) {
+        particles.push({
+          x: Math.random() * canvas.offsetWidth,
+          y: -20 - Math.random() * 200,
+          w: 4 + Math.random() * 6,
+          h: 8 + Math.random() * 8,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vx: (Math.random() - 0.5) * 3,
+          vy: 2 + Math.random() * 3,
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 10,
+          opacity: 1
+        });
+      }
+
+      let frame = 0;
+      function draw() {
+        ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+        let alive = false;
+
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.vy += 0.05;
+          p.y += p.vy;
+          p.rotation += p.rotSpeed;
+          if (frame > 60) p.opacity -= 0.008;
+
+          if (p.opacity > 0 && p.y < canvas.offsetHeight + 50) {
+            alive = true;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, p.opacity);
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rotation * Math.PI / 180);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+            ctx.restore();
+          }
+        });
+
+        frame++;
+        if (alive) requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    // Observe slide becoming active
+    const observer = new MutationObserver(() => {
+      if (implSlide.classList.contains('active') && !hasAnimated) {
+        hasAnimated = true;
+        animateCounters();
+        setTimeout(launchConfetti, 800);
+      }
+    });
+    observer.observe(implSlide, { attributes: true, attributeFilter: ['class'] });
+  })();
+
+</script>
+
+</body>
+</html>
