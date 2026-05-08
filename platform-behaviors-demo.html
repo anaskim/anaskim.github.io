@@ -177,9 +177,10 @@
   .feature-card h4 { font-size: 1rem; color: var(--accent-light); margin-bottom: 6px; }
   .feature-card p { font-size: 0.9rem; color: var(--text-muted); }
 
-  .quote { border-left: 3px solid var(--accent); padding-left: 20px; margin: 20px 0; max-width: 800px; }
-  .quote p { font-style: italic; font-size: 1.2rem; color: var(--text); }
-  .quote .attribution { font-size: 1rem; color: var(--text-muted); margin-top: 8px; font-style: normal; }
+  .quote { border-left: none; padding: 18px 20px; margin: 20px 0; max-width: 800px; position: relative; text-align: center; }
+  .quote::before { content: '\201C'; position: absolute; top: -8px; left: 6px; font-size: 3.5rem; color: var(--accent); opacity: 0.5; font-family: Georgia, 'Times New Roman', serif; line-height: 1; }
+  .quote p { font-style: italic; font-size: 1.2rem; color: var(--text); padding-left: 10px; }
+  .quote .attribution { font-size: 0.85rem; color: var(--text-muted); margin-top: 10px; font-style: normal; text-transform: uppercase; letter-spacing: 0.08em; }
 
   .slide-title { text-align: center; }
   .logo-mark { font-size: 4rem; margin-bottom: 20px; }
